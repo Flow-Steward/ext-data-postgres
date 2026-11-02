@@ -6,3 +6,4 @@ dev-wheels/
 bin/
 dist/
 packages.txt
+tests/live-pgvector.local.json

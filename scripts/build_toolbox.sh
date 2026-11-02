@@ -17,6 +17,10 @@ TOOLBOX_TAG=v1.3.0
 TOOLBOX_COMMIT=b0010060a939455d91e4f8ba62dc3e72b1892469
 GO_IMAGE=golang:1.26.2-bookworm@sha256:47ce5636e9936b2c5cbf708925578ef386b4f8872aec74a67bd13a627d242b19
 PATCH=scripts/patches/0001-flowsteward-driver-bound-query-params.patch
+VECTOR_PATCH=scripts/patches/0002-flowsteward-managed-vector-safety.patch
+BUILD_NAME=${FS_POSTGRES_BUILD_NAME:-fs-postgres-native-build-$$}
+GO_CACHE=${FS_POSTGRES_GO_CACHE:-flow-steward-postgres-go-cache}
+BUILD_CACHE=${FS_POSTGRES_BUILD_CACHE:-flow-steward-postgres-build-cache}
 # Fixed connection profiles for this database (MariaDB uses the MySQL protocol).
 test -f "$ROOT/scripts/toolbox-prebuilts.txt" \
   || { echo "[FAIL] missing locked profile list" >&2; exit 2; }
@@ -24,18 +28,42 @@ PREBUILTS="alloydb-omni alloydb-postgres cloud-sql-postgres postgres"
 test "$(tr "\n" " " < "$ROOT/scripts/toolbox-prebuilts.txt" | sed "s/ *$//")" = "$PREBUILTS"
 mkdir -p "$ROOT"
 
-docker run --rm --cpus=1 --memory=2g \
-  -v flow-steward-db-batch-go-cache:/go/pkg/mod -v flow-steward-db-batch-build-cache:/root/.cache/go-build \
-  -e TOOLBOX_TAG="$TOOLBOX_TAG" -e TOOLBOX_COMMIT="$TOOLBOX_COMMIT" -e PATCH="$PATCH" \
+# An optional verified local checkout avoids downloading the same pinned source twice.
+set --
+if test -n "${FS_TOOLBOX_SOURCE_DIR:-}"; then
+  set -- --mount "type=bind,source=$FS_TOOLBOX_SOURCE_DIR,target=/upstream,readonly"
+fi
+
+docker run --rm --pull=never --name "$BUILD_NAME" --cpus=1 --memory=2g \
+  --label flow-steward.owner=ext-data-postgres-native-build \
+  -v "$GO_CACHE:/go/pkg/mod" -v "$BUILD_CACHE:/root/.cache/go-build" \
+  -e TOOLBOX_TAG="$TOOLBOX_TAG" -e TOOLBOX_COMMIT="$TOOLBOX_COMMIT" -e PATCH="$PATCH" -e VECTOR_PATCH="$VECTOR_PATCH" \
   -e PREBUILTS="$PREBUILTS" -e VARIANT="$VARIANT" \
   -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
-  -v "$ROOT:/out" "$GO_IMAGE" sh -c '
+  -v "$ROOT:/out" "$@" "$GO_IMAGE" sh -c '
     set -eu
-    git clone --quiet --filter=blob:none --branch "$TOOLBOX_TAG" --depth 1 \
-      https://github.com/googleapis/mcp-toolbox.git /src
+    if test -d /upstream/.git; then
+      test -z "$(git -c safe.directory=/upstream -C /upstream status --porcelain)"
+      cp -a /upstream /src
+    else
+      git clone --quiet --filter=blob:none --branch "$TOOLBOX_TAG" --depth 1 \
+        https://github.com/googleapis/mcp-toolbox.git /src
+    fi
+    git config --global --add safe.directory /src
     test "$(git -C /src rev-parse HEAD)" = "$TOOLBOX_COMMIT"
     cd /src
     git apply "/out/$PATCH"
+    # Observe the native regression before applying the implementation patch.
+    git apply --include=internal/sources/postgres/flowsteward_test.go "/out/$VECTOR_PATCH"
+    if go test -p 1 ./internal/sources/postgres -run TestFlowSteward > /tmp/vector-red.log 2>&1; then
+      cat /tmp/vector-red.log
+      echo "[FAIL] vector safety regression unexpectedly passed before the patch" >&2
+      exit 2
+    fi
+    cat /tmp/vector-red.log
+    grep -q "unsafe vector endpoint accepted" /tmp/vector-red.log
+    echo "[PASS] managed-vector native regression observed RED"
+    git apply --exclude=internal/sources/postgres/flowsteward_test.go "/out/$VECTOR_PATCH"
 
     # Every resource type the prebuilt configurations name ...
     : > /tmp/types
@@ -65,6 +93,7 @@ docker run --rm --cpus=1 --memory=2g \
     cp /tmp/packages "/out/packages.txt"
 
     go test -p 1 ./internal/util/flowstewardbinding
+    go test -p 1 ./internal/sources/postgres -run "TestBuildPostgresURL|TestParseQueryExecMode|TestFlowSteward"
     export SOURCE_DATE_EPOCH=1779400183
     for target in linux-amd64 linux-arm64; do
       arch=${target#linux-}
@@ -75,6 +104,9 @@ docker run --rm --cpus=1 --memory=2g \
       chmod 0755 "/out/bin/$target/toolbox"
       echo "[PASS] $VARIANT $target: $(stat -c %s "/out/bin/$target/toolbox") bytes"
     done
+    echo "[RESOURCE] cgroup memory.peak: $(cat /sys/fs/cgroup/memory.peak) bytes"
+    echo "[RESOURCE] cgroup memory.events:"
+    cat /sys/fs/cgroup/memory.events
     chown -R "$HOST_UID:$HOST_GID" "/out"
   '
 

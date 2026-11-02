@@ -11,7 +11,7 @@ def test_standalone_database_contract():
     manifest = yaml.safe_load((ROOT / "extension.yaml").read_text())
     variant = json.loads((ROOT / "variant.json").read_text())
     profiles = set(variant["prebuilts"])
-    assert manifest["version"] == "1.3.0"
+    assert manifest["version"] == "1.4.0"
     assert manifest["display_name"] == variant["display_name"]
     contract = manifest["runtime"]["extension_contract_v2"]
     assert len(contract["dataset_connectors"]) == 1
@@ -22,7 +22,7 @@ def test_standalone_database_contract():
         yaml.safe_load((ROOT / "schemas/config.schema.yaml").read_text()),
     ]:
         assert set(schema["properties"]["prebuilt"]["enum"]) == profiles
-        assert not {"account", "warehouse", "schema", "role", "dialect", "protocol"} & set(
+        assert not {"account", "warehouse", "role", "dialect", "protocol"} & set(
             schema["properties"]
         )
         for condition in schema["allOf"]:

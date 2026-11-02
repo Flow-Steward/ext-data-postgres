@@ -30,4 +30,7 @@ build:
   local_patch: scripts/patches/0001-flowsteward-driver-bound-query-params.patch
   local_patch_purpose: Pass saved-query values to upstream RunSQL driver parameters
     without SQL interpolation.
+  additional_local_patches:
+  - path: scripts/patches/0002-flowsteward-managed-vector-safety.patch
+    purpose: Preserve ordinary SQL behavior while bounding managed vector endpoint dialing, TLS, wire input and result rows/bytes.
   network_at_install_or_runtime: false

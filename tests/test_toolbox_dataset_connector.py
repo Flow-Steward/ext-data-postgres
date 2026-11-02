@@ -580,6 +580,16 @@ def test_toolbox_runtime_supported_connectors_matches_manifest_catalog() -> None
         "preview_query",
         "execute_template",
         "infer_output_schema",
+        "ensure_collection",
+        "get_collection",
+        "drop_collection",
+        "upsert_chunk",
+        "upsert_document",
+        "get_chunk",
+        "update_chunk",
+        "delete_chunk",
+        "delete_document",
+        "query",
     }
     if DATASET_PREBUILTS & {
         "postgres",

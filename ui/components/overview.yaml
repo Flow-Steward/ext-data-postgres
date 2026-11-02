@@ -1,7 +1,8 @@
 component_id: toolbox_dataset_connector_overview
 type: markdown
 title: PostgreSQL
-body: PostgreSQL supports schema inspection, bounded saved-query reads and parameterized
-  workflow INSERT, UPDATE and DELETE. Select a supported connection profile and supply
-  its database or managed-cloud settings. Writes require a project connection and
-  are suppressed in test mode. No triggers or schema-changing operations are exposed.
+body: PostgreSQL supports schema inspection, saved-query reads and parameterized workflow INSERT, UPDATE
+  and DELETE. The same direct PostgreSQL project connection also supports pgvector collection lifecycle,
+  document/chunk writes and similarity search. The server administrator must install vector in public.
+  SQL writes and vector writes are suppressed in test mode. Vector actions use the connection user/password
+  plus optional schema, verified TLS and timeout settings; no triggers are exposed.

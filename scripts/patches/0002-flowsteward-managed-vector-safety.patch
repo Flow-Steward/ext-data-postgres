@@ -1,0 +1,209 @@
+diff --git a/internal/sources/postgres/postgres.go b/internal/sources/postgres/postgres.go
+--- a/internal/sources/postgres/postgres.go
++++ b/internal/sources/postgres/postgres.go
+@@ -16,9 +16,14 @@
+ 
+ import (
+ 	"context"
++	"encoding/json"
+ 	"fmt"
++	"github.com/jackc/pgx/v5/pgproto3"
++	"io"
+ 	"net"
+ 	"net/url"
++	"strings"
++	"time"
+ 
+ 	"github.com/goccy/go-yaml"
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+@@ -66,6 +71,7 @@
+ }
+ 
+ func (r Config) Initialize(ctx context.Context, tracer trace.Tracer) (sources.Source, error) {
++	managedVector := r.QueryParams["fs_vector_mode"] == "true"
+ 	pool, err := initPostgresConnectionPool(ctx, tracer, r.Name, r.Host, r.Port, r.User, r.Password, r.Database, r.QueryParams, r.QueryExecMode)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("unable to create pool: %w", err)
+@@ -77,8 +83,9 @@
+ 	}
+ 
+ 	s := &Source{
+-		Config: r,
+-		Pool:   pool,
++		Config:        r,
++		Pool:          pool,
++		managedVector: managedVector,
+ 	}
+ 	return s, nil
+ }
+@@ -87,7 +94,8 @@
+ 
+ type Source struct {
+ 	Config
+-	Pool *pgxpool.Pool
++	Pool          *pgxpool.Pool
++	managedVector bool
+ }
+ 
+ func (s *Source) SourceType() string {
+@@ -112,7 +120,11 @@
+ 
+ 	fields := results.FieldDescriptions()
+ 	out := []any{}
++	resultBytes := 2
+ 	for results.Next() {
++		if s.managedVector && len(out) >= 100 {
++			return nil, fmt.Errorf("exceeds result row limit")
++		}
+ 		values, err := results.Values()
+ 		if err != nil {
+ 			return nil, fmt.Errorf("unable to parse row: %w", err)
+@@ -120,6 +132,16 @@
+ 		row := orderedmap.Row{}
+ 		for i, f := range fields {
+ 			row.Add(f.Name, values[i])
++		}
++		if s.managedVector {
++			encoded, err := json.Marshal(row)
++			if err != nil {
++				return nil, fmt.Errorf("invalid JSON result")
++			}
++			resultBytes += len(encoded) + 1
++			if resultBytes > 480*1024 {
++				return nil, fmt.Errorf("exceeds result byte limit")
++			}
+ 		}
+ 		out = append(out, row)
+ 	}
+@@ -146,6 +168,31 @@
+ 		queryParams["application_name"] = userAgent
+ 	}
+ 
++	// These settings are generated only by Flow Steward's closed vector transport.
++	// Ordinary SQL/prebuilt sources keep their existing endpoint and result behavior.
++	managedVector := queryParams["fs_vector_mode"] == "true"
++	var ips []string
++	if managedVector {
++		pinned := queryParams["fs_pinned_ips"]
++		allowPrivate := queryParams["fs_allow_private"] == "true"
++		delete(queryParams, "fs_vector_mode")
++		delete(queryParams, "fs_pinned_ips")
++		delete(queryParams, "fs_allow_private")
++		ips = strings.Split(pinned, ",")
++		for _, raw := range ips {
++			ip := net.ParseIP(raw)
++			if ip == nil {
++				return nil, fmt.Errorf("invalid pinned endpoint")
++			}
++			private := ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast()
++			if private && !allowPrivate {
++				return nil, fmt.Errorf("private endpoint blocked")
++			}
++			if !private && queryParams["sslmode"] != "verify-full" {
++				return nil, fmt.Errorf("public endpoint requires verified TLS")
++			}
++		}
++	}
+ 	config, err := pgxpool.ParseConfig(BuildPostgresURL(host, port, user, pass, dbname, queryParams))
+ 	if err != nil {
+ 		return nil, fmt.Errorf("unable to parse connection uri: %w", err)
+@@ -156,6 +203,25 @@
+ 		return nil, err
+ 	}
+ 	config.ConnConfig.DefaultQueryExecMode = execMode
++	if managedVector {
++		config.MaxConns = 1
++		config.MinConns = 0
++		config.ConnConfig.Fallbacks = nil
++		config.ConnConfig.ConnectTimeout = 5 * time.Second
++		config.ConnConfig.LookupFunc = func(context.Context, string) ([]string, error) { return []string{host}, nil }
++		config.ConnConfig.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
++			h, p, err := net.SplitHostPort(address)
++			if err != nil || h != host || p != port {
++				return nil, fmt.Errorf("unexpected endpoint")
++			}
++			return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, network, net.JoinHostPort(ips[0], port))
++		}
++		config.ConnConfig.BuildFrontend = func(r io.Reader, w io.Writer) *pgproto3.Frontend {
++			frontend := pgproto3.NewFrontend(io.LimitReader(r, 2*1024*1024), w)
++			frontend.SetMaxBodyLen(512 * 1024)
++			return frontend
++		}
++	}
+ 
+ 	pool, err := pgxpool.NewWithConfig(ctx, config)
+ 	if err != nil {
+diff --git a/internal/sources/postgres/flowsteward_test.go b/internal/sources/postgres/flowsteward_test.go
+new file mode 100644
+--- /dev/null
++++ b/internal/sources/postgres/flowsteward_test.go
+@@ -0,0 +1,69 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++
++package postgres
++
++import (
++	"bytes"
++	"context"
++	"encoding/binary"
++	"io"
++	"testing"
++	"time"
++
++	"go.opentelemetry.io/otel/trace/noop"
++)
++
++func TestFlowStewardOrdinarySourceKeepsItsPoolConfiguration(t *testing.T) {
++	tracer := noop.NewTracerProvider().Tracer("test")
++	pool, err := initPostgresConnectionPool(context.Background(), tracer, "legacy", "db.example", "5432", "u", "p", "db", map[string]string{"sslmode": "disable"}, "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer pool.Close()
++	if pool.Config().MaxConns == 1 {
++		t.Fatal("vector pool limits leaked into ordinary SQL")
++	}
++}
++
++func TestFlowStewardManagedVectorEndpointAndWireLimits(t *testing.T) {
++	tracer := noop.NewTracerProvider().Tracer("test")
++	for _, params := range []map[string]string{
++		{"fs_vector_mode": "true", "sslmode": "verify-full"},
++		{"fs_vector_mode": "true", "fs_pinned_ips": "127.0.0.1", "sslmode": "disable"},
++		{"fs_vector_mode": "true", "fs_pinned_ips": "8.8.8.8", "sslmode": "disable"},
++		{"fs_vector_mode": "true", "fs_pinned_ips": "invalid", "sslmode": "verify-full"},
++	} {
++		pool, err := initPostgresConnectionPool(context.Background(), tracer, "test", "db.example", "5432", "u", "p", "db", params, "")
++		if pool != nil {
++			pool.Close()
++		}
++		if err == nil {
++			t.Fatal("unsafe vector endpoint accepted")
++		}
++	}
++	params := map[string]string{"fs_vector_mode": "true", "fs_pinned_ips": "8.8.8.8", "sslmode": "verify-full"}
++	pool, err := initPostgresConnectionPool(context.Background(), tracer, "test", "db.example", "5432", "u", "p", "db", params, "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer pool.Close()
++	cfg := pool.Config()
++	if len(cfg.ConnConfig.Fallbacks) != 0 || cfg.MaxConns != 1 || cfg.ConnConfig.ConnectTimeout != 5*time.Second {
++		t.Fatal("unsafe fallback or pool configuration")
++	}
++	if cfg.ConnConfig.TLSConfig == nil || cfg.ConnConfig.TLSConfig.InsecureSkipVerify || cfg.ConnConfig.TLSConfig.ServerName != "db.example" {
++		t.Fatal("TLS hostname verification was lost")
++	}
++	if _, err := cfg.ConnConfig.DialFunc(context.Background(), "tcp", "other.example:5432"); err == nil {
++		t.Fatal("unexpected endpoint accepted")
++	}
++	frame := make([]byte, 5)
++	frame[0] = 'D'
++	binary.BigEndian.PutUint32(frame[1:], 3*1024*1024)
++	frontend := cfg.ConnConfig.BuildFrontend(bytes.NewReader(frame), io.Discard)
++	_, err = frontend.Receive()
++	if err == nil || err == io.EOF || err == io.ErrUnexpectedEOF {
++		t.Fatalf("large frame was not rejected before reading body: %v", err)
++	}
++}

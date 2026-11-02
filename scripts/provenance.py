@@ -31,6 +31,16 @@ def main():
         "patch_sha256": digest(
             ROOT / "scripts/patches/0001-flowsteward-driver-bound-query-params.patch"
         ),
+        "patches": {
+            "scripts/patches/0001-flowsteward-driver-bound-query-params.patch": digest(
+                ROOT / "scripts/patches/0001-flowsteward-driver-bound-query-params.patch"
+            ),
+            "scripts/patches/0002-flowsteward-managed-vector-safety.patch": digest(
+                ROOT / "scripts/patches/0002-flowsteward-managed-vector-safety.patch"
+            ),
+        },
+        "registered_packages": (ROOT / "packages.txt").read_text().splitlines(),
+        "managed_vector_mode": True,
         "binaries": records,
     }
     (ROOT / "toolbox-provenance.json").write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")

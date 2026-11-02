@@ -22,6 +22,8 @@ from typing import Any
 from flowsteward_extension_sdk import runtime_context_from_payload
 
 from sql_writes import write_input, write_statement
+from vector_commands import FIELDS as VECTOR_ACTIONS
+from vector_runtime import handle as handle_vector_action
 
 _MESSAGE_ONLY_READ_ONLY_SELECT_STATEMENTS_ARE_ALLOWED = (
     "Only read-only SELECT statements are allowed"
@@ -349,7 +351,7 @@ def _invoke_toolbox(
                 "params": {
                     "protocolVersion": "2025-06-18",
                     "capabilities": {},
-                    "clientInfo": {"name": EXTENSION_ID, "version": "1.2.0"},
+                    "clientInfo": {"name": EXTENSION_ID, "version": "1.4.0"},
                 },
             },
         )
@@ -1607,6 +1609,8 @@ def _execute_write(request: dict[str, Any]) -> dict[str, Any]:
 def handle_action(request: dict[str, Any]) -> dict[str, Any]:
     action = _as_dict(request.get("action"))
     action_id = str(action.get("action_id") or "").strip()
+    if action_id in VECTOR_ACTIONS:
+        return handle_vector_action(request)
     if action_id == "execute_write":
         return _execute_write(request)
     if action_id not in {

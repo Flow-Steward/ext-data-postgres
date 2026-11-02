@@ -14,7 +14,7 @@ import zipfile
 from pathlib import Path
 
 EXTENSION_ID = "flowsteward.data-connector-mcp-toolbox-postgres"
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 TOP_FOLDER = "flowsteward_data_connector_mcp_toolbox_postgres"
 SOURCE_DATE_EPOCH = 1779400183
 MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
@@ -40,7 +40,12 @@ EXCLUDED_DIRECTORIES = frozenset(
     }
 )
 EXCLUDED_FILES = frozenset(
-    {".fs-package.yaml", ".fs-extension-install.yaml", "live-oracle.local.json"}
+    {
+        ".fs-package.yaml",
+        ".fs-extension-install.yaml",
+        "live-oracle.local.json",
+        "live-pgvector.local.json",
+    }
 )
 
 

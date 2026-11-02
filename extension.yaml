@@ -4,11 +4,11 @@ lifecycle:
   data_migrations: []
 extension_id: flowsteward.data-connector-mcp-toolbox-postgres
 kind: tool_provider
-version: 1.3.0
+version: 1.4.0
 release_stage: active
 display_name: PostgreSQL
-description: PostgreSQL dataset reads and parameterized workflow INSERT, UPDATE and
-  DELETE.
+description: PostgreSQL dataset reads, parameterized SQL writes, and pgvector collections, document chunks
+  and similarity search.
 vendor:
   name: Flow Steward
   support_url: https://github.com/Flow-Steward/ext-data-postgres/issues
@@ -20,17 +20,19 @@ listing:
   - database
   - sql
   - dataset
-  summary: PostgreSQL dataset reads and parameterized workflow INSERT, UPDATE and
-    DELETE.
-  description: Connect PostgreSQL datasets, inspect schemas, preview saved queries,
-    and run bounded workflow writes.
+  - pgvector
+  - vector
+  summary: PostgreSQL dataset reads, parameterized SQL writes, and pgvector collections, document chunks
+    and similarity search.
+  description: Connect PostgreSQL datasets, inspect schemas, run saved read queries and workflow INSERT/UPDATE/DELETE,
+    and store or search dense vectors using the same project connection.
 package:
   format: flow-steward-extension
   license: Apache-2.0
   includes_source: true
 billing_mode: free
-upgrade_notes: Preserves the installed extension and connection identifiers. Settings
-  and packaging now belong exclusively to PostgreSQL.
+upgrade_notes: Preserves PostgreSQL extension, connection and dataset identifiers. Adds pgvector actions
+  to direct PostgreSQL project connections; the server administrator must install vector in public.
 screenshots:
 - label: Overview
   description: PostgreSQL connection profiles and supported operations.
@@ -48,10 +50,44 @@ machine_auth:
   - extension:invoke
 account_scope:
   scope_type: project
-  description: PostgreSQL connections are project-scoped and resolved through project
-    config and secrets.
+  description: PostgreSQL connections are project-scoped and resolved through project config and secrets.
 external_effects:
 - operation_id: execute_write
+  effect_kind: database_write
+  channel: toolbox
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: delete_chunk
+  effect_kind: database_write
+  channel: toolbox
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: delete_document
+  effect_kind: database_write
+  channel: toolbox
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: drop_collection
+  effect_kind: database_write
+  channel: toolbox
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: ensure_collection
+  effect_kind: database_write
+  channel: toolbox
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: update_chunk
+  effect_kind: database_write
+  channel: toolbox
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: upsert_chunk
+  effect_kind: database_write
+  channel: toolbox
+  idempotency: required
+  test_mode_behavior: suppress
+- operation_id: upsert_document
   effect_kind: database_write
   channel: toolbox
   idempotency: required
@@ -79,7 +115,8 @@ runtime:
     connection_types:
     - connection_type_id: toolbox_sql_writer
       display_name: PostgreSQL
-      description: Project connection for parameterized PostgreSQL workflow writes.
+      description: Project PostgreSQL connection for SQL writes and pgvector actions. Vector actions use
+        the direct postgres profile and require pgvector in public.
       config_schema:
         type: object
         additionalProperties: false
@@ -134,6 +171,23 @@ runtime:
           ip_type:
             type: string
             title: IP type
+          schema:
+            type: string
+            title: Vector schema
+            default: fs_vectors
+            pattern: ^[A-Za-z_][A-Za-z0-9_]{0,62}$
+            description: Schema for pgvector collections on direct PostgreSQL connections.
+          tls:
+            type: boolean
+            title: Verify vector TLS
+            default: true
+            description: Vector actions require verified TLS for public endpoints.
+          request_timeout_seconds:
+            type: integer
+            title: Vector operation timeout
+            minimum: 1
+            maximum: 30
+            default: 15
         allOf:
         - if:
             properties:
@@ -191,10 +245,9 @@ runtime:
             type: string
             title: Password
             minLength: 1
-            description: Password is required for postgres. Supply password or the
-              matching profile-specific secret env variable. Managed PostgreSQL/MySQL/AlloyDB
-              IAM profiles keep password optional; public config env is not a credential
-              source.
+            description: Password is required for postgres. Supply password or the matching profile-specific
+              secret env variable. Managed PostgreSQL/MySQL/AlloyDB IAM profiles keep password optional;
+              public config env is not a credential source.
           env:
             type: object
             title: Profile-specific secret environment
@@ -213,9 +266,9 @@ runtime:
                 type: string
                 minLength: 1
         title: PostgreSQL password
-        description: Password is required for postgres. Supply password or the matching
-          profile-specific secret env variable. Managed PostgreSQL/MySQL/AlloyDB IAM
-          profiles keep password optional; public config env is not a credential source.
+        description: Password is required for postgres. Supply password or the matching profile-specific
+          secret env variable. Managed PostgreSQL/MySQL/AlloyDB IAM profiles keep password optional; public
+          config env is not a credential source.
       capabilities:
         write_queries: true
       safety_profile:
@@ -273,8 +326,8 @@ runtime:
           database:
             type: string
             title: Database or dataset
-            description: Database, dataset, namespace, or local file value used by
-              this Toolbox source when applicable.
+            description: Database, dataset, namespace, or local file value used by this Toolbox source
+              when applicable.
           host:
             type: string
             title: Host
@@ -292,8 +345,7 @@ runtime:
           query_params:
             type: string
             title: Query params
-            description: Optional connection query params passed to Toolbox when supported
-              by the source.
+            description: Optional connection query params passed to Toolbox when supported by the source.
           project:
             type: string
             title: Cloud project
@@ -417,10 +469,9 @@ runtime:
             type: string
             title: Password
             minLength: 1
-            description: Password is required for postgres. Supply password or the
-              matching profile-specific secret env variable. Managed PostgreSQL/MySQL/AlloyDB
-              IAM profiles keep password optional; public config env is not a credential
-              source.
+            description: Password is required for postgres. Supply password or the matching profile-specific
+              secret env variable. Managed PostgreSQL/MySQL/AlloyDB IAM profiles keep password optional;
+              public config env is not a credential source.
           env:
             type: object
             title: Profile-specific secret environment
@@ -438,9 +489,9 @@ runtime:
               POSTGRES_PASSWORD:
                 type: string
                 minLength: 1
-        description: Password is required for postgres. Supply password or the matching
-          profile-specific secret env variable. Managed PostgreSQL/MySQL/AlloyDB IAM
-          profiles keep password optional; public config env is not a credential source.
+        description: Password is required for postgres. Supply password or the matching profile-specific
+          secret env variable. Managed PostgreSQL/MySQL/AlloyDB IAM profiles keep password optional; public
+          config env is not a credential source.
       capabilities:
         read_only: true
         test_connection: true
@@ -464,8 +515,8 @@ runtime:
       workflow_visible: true
       operation_kind: action
       category: database
-      description: Execute one parameterized INSERT, UPDATE or DELETE using the selected
-        project connection. INSERT supports database-specific upsert syntax.
+      description: Execute one parameterized INSERT, UPDATE or DELETE using the selected project connection.
+        INSERT supports database-specific upsert syntax.
       connection_type_ids:
       - toolbox_sql_writer
       required_scopes:
@@ -500,8 +551,7 @@ runtime:
     - operation_id: test_connection
       workflow_visible: false
       operation_kind: action
-      description: Validate that the PostgreSQL driver can list tables for the configured
-        PostgreSQL connection.
+      description: Validate that the PostgreSQL driver can list tables for the configured PostgreSQL connection.
       required_scopes:
       - extension:invoke
       result_fields:
@@ -517,8 +567,7 @@ runtime:
     - operation_id: introspect_schema
       workflow_visible: false
       operation_kind: action
-      description: Return a normalized typed schema snapshot from the PostgreSQL driver
-        list_tables output.
+      description: Return a normalized typed schema snapshot from the PostgreSQL driver list_tables output.
       required_scopes:
       - extension:invoke
       result_fields:
@@ -536,8 +585,7 @@ runtime:
     - operation_id: validate_query
       workflow_visible: false
       operation_kind: action
-      description: Validate a saved read-only query template against dataset resource
-        scope.
+      description: Validate a saved read-only query template against dataset resource scope.
       required_scopes:
       - extension:invoke
       result_fields:
@@ -565,8 +613,7 @@ runtime:
     - operation_id: execute_template
       workflow_visible: false
       operation_kind: action
-      description: Execute a saved read-only query template with named parameters
-        and runtime row limits.
+      description: Execute a saved read-only query template with named parameters and runtime row limits.
       required_scopes:
       - extension:invoke
       result_fields:
@@ -581,8 +628,7 @@ runtime:
     - operation_id: infer_output_schema
       workflow_visible: false
       operation_kind: action
-      description: Infer output schema from a bounded read-only preview of the query
-        template.
+      description: Infer output schema from a bounded read-only preview of the query template.
       required_scopes:
       - extension:invoke
       result_fields:
@@ -591,6 +637,682 @@ runtime:
       - invalid_config
       - connector_runtime_failed
       - unknown_action
+    - operation_id: ensure_collection
+      display_name: Ensure Collection
+      description: 'PostgreSQL pgvector: Create schema, dimensioned chunk table and HNSW index; verify
+        existing dimension and metric. pgvector must already be installed in public.'
+      operation_kind: action
+      workflow_visible: true
+      connection_type_ids:
+      - toolbox_sql_writer
+      category: database
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+        display_name: Connection
+      - name: collection
+        value_type: text
+        required: true
+        display_name: Collection
+        schema:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]{0,47}$
+          minLength: 1
+          maxLength: 48
+      - name: dimensions
+        value_type: integer
+        required: true
+        display_name: Dimensions
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 2000
+      - name: metric
+        value_type: text
+        required: false
+        display_name: Metric
+        schema:
+          type: string
+          enum:
+          - cosine
+          - l2
+          - inner_product
+          default: cosine
+      outputs:
+      - name: records
+        value_type: json
+      - name: count
+        value_type: integer
+      - name: applied
+        value_type: boolean
+      result_fields:
+      - result.records
+      - result.count
+      - result.applied
+      error_codes:
+      - invalid_payload
+      - invalid_connection
+      - effect_claim_required
+      - test_mode_suppressed
+      - provider_unavailable
+      - native_unavailable
+      - invalid_provider_response
+      - response_too_large
+      - network_blocked
+      - timeout
+      - authentication_failed
+      - index_configuration_mismatch
+      - invalid_vector
+      required_scopes:
+      - extension:invoke
+    - operation_id: get_collection
+      display_name: Get Collection
+      description: 'PostgreSQL pgvector: Get collection.'
+      operation_kind: action
+      workflow_visible: true
+      connection_type_ids:
+      - toolbox_sql_writer
+      category: database
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+        display_name: Connection
+      - name: collection
+        value_type: text
+        required: true
+        display_name: Collection
+        schema:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]{0,47}$
+          minLength: 1
+          maxLength: 48
+      outputs:
+      - name: records
+        value_type: json
+      - name: count
+        value_type: integer
+      - name: applied
+        value_type: boolean
+      result_fields:
+      - result.records
+      - result.count
+      - result.applied
+      error_codes:
+      - invalid_payload
+      - invalid_connection
+      - effect_claim_required
+      - test_mode_suppressed
+      - provider_unavailable
+      - native_unavailable
+      - invalid_provider_response
+      - response_too_large
+      - network_blocked
+      - timeout
+      - authentication_failed
+      - index_configuration_mismatch
+      - invalid_vector
+      required_scopes:
+      - extension:invoke
+    - operation_id: drop_collection
+      display_name: Drop Collection
+      description: 'PostgreSQL pgvector: Drop collection table and indexes with explicit confirmation.'
+      operation_kind: action
+      workflow_visible: true
+      connection_type_ids:
+      - toolbox_sql_writer
+      category: database
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+        display_name: Connection
+      - name: collection
+        value_type: text
+        required: true
+        display_name: Collection
+        schema:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]{0,47}$
+          minLength: 1
+          maxLength: 48
+      - name: confirm
+        value_type: boolean
+        required: true
+        display_name: Confirm
+        schema:
+          type: boolean
+      outputs:
+      - name: records
+        value_type: json
+      - name: count
+        value_type: integer
+      - name: applied
+        value_type: boolean
+      result_fields:
+      - result.records
+      - result.count
+      - result.applied
+      error_codes:
+      - invalid_payload
+      - invalid_connection
+      - effect_claim_required
+      - test_mode_suppressed
+      - provider_unavailable
+      - native_unavailable
+      - invalid_provider_response
+      - response_too_large
+      - network_blocked
+      - timeout
+      - authentication_failed
+      - index_configuration_mismatch
+      - invalid_vector
+      required_scopes:
+      - extension:invoke
+    - operation_id: upsert_chunk
+      display_name: Upsert Chunk
+      description: 'PostgreSQL pgvector: Upsert chunk.'
+      operation_kind: action
+      workflow_visible: true
+      connection_type_ids:
+      - toolbox_sql_writer
+      category: database
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+        display_name: Connection
+      - name: chunk_id
+        value_type: text
+        required: true
+        display_name: Chunk Id
+        schema:
+          type: string
+      - name: collection
+        value_type: text
+        required: true
+        display_name: Collection
+        schema:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]{0,47}$
+          minLength: 1
+          maxLength: 48
+      - name: content
+        value_type: text
+        required: false
+        display_name: Content
+        schema:
+          type: string
+      - name: document_id
+        value_type: text
+        required: true
+        display_name: Document Id
+        schema:
+          type: string
+      - name: metadata
+        value_type: json
+        required: false
+        display_name: Metadata
+        schema:
+          type: object
+      - name: source
+        value_type: json
+        required: false
+        display_name: Source
+        schema:
+          type: object
+      - name: vector
+        value_type: json
+        required: true
+        display_name: Vector
+        schema:
+          type: array
+          maxItems: 2000
+          minItems: 1
+          items:
+            type: number
+      outputs:
+      - name: records
+        value_type: json
+      - name: count
+        value_type: integer
+      - name: applied
+        value_type: boolean
+      result_fields:
+      - result.records
+      - result.count
+      - result.applied
+      error_codes:
+      - invalid_payload
+      - invalid_connection
+      - effect_claim_required
+      - test_mode_suppressed
+      - provider_unavailable
+      - native_unavailable
+      - invalid_provider_response
+      - response_too_large
+      - network_blocked
+      - timeout
+      - authentication_failed
+      - index_configuration_mismatch
+      - invalid_vector
+      required_scopes:
+      - extension:invoke
+    - operation_id: upsert_document
+      display_name: Upsert Document
+      description: 'PostgreSQL pgvector: Atomically upsert 1 to 100 explicitly identified chunks for a
+        document. Existing omitted chunks are preserved; delete_document removes all document chunks.'
+      operation_kind: action
+      workflow_visible: true
+      connection_type_ids:
+      - toolbox_sql_writer
+      category: database
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+        display_name: Connection
+      - name: chunks
+        value_type: json
+        required: true
+        display_name: Chunks
+        schema:
+          type: array
+          maxItems: 100
+          minItems: 1
+          items:
+            type: object
+      - name: collection
+        value_type: text
+        required: true
+        display_name: Collection
+        schema:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]{0,47}$
+          minLength: 1
+          maxLength: 48
+      - name: document_id
+        value_type: text
+        required: true
+        display_name: Document Id
+        schema:
+          type: string
+      - name: source
+        value_type: json
+        required: false
+        display_name: Source
+        schema:
+          type: object
+      outputs:
+      - name: records
+        value_type: json
+      - name: count
+        value_type: integer
+      - name: applied
+        value_type: boolean
+      result_fields:
+      - result.records
+      - result.count
+      - result.applied
+      error_codes:
+      - invalid_payload
+      - invalid_connection
+      - effect_claim_required
+      - test_mode_suppressed
+      - provider_unavailable
+      - native_unavailable
+      - invalid_provider_response
+      - response_too_large
+      - network_blocked
+      - timeout
+      - authentication_failed
+      - index_configuration_mismatch
+      - invalid_vector
+      required_scopes:
+      - extension:invoke
+    - operation_id: get_chunk
+      display_name: Get Chunk
+      description: 'PostgreSQL pgvector: Get chunk.'
+      operation_kind: action
+      workflow_visible: true
+      connection_type_ids:
+      - toolbox_sql_writer
+      category: database
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+        display_name: Connection
+      - name: chunk_id
+        value_type: text
+        required: true
+        display_name: Chunk Id
+        schema:
+          type: string
+      - name: collection
+        value_type: text
+        required: true
+        display_name: Collection
+        schema:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]{0,47}$
+          minLength: 1
+          maxLength: 48
+      - name: include_vector
+        value_type: boolean
+        required: false
+        display_name: Include Vector
+        schema:
+          type: boolean
+      outputs:
+      - name: records
+        value_type: json
+      - name: count
+        value_type: integer
+      - name: applied
+        value_type: boolean
+      result_fields:
+      - result.records
+      - result.count
+      - result.applied
+      error_codes:
+      - invalid_payload
+      - invalid_connection
+      - effect_claim_required
+      - test_mode_suppressed
+      - provider_unavailable
+      - native_unavailable
+      - invalid_provider_response
+      - response_too_large
+      - network_blocked
+      - timeout
+      - authentication_failed
+      - index_configuration_mismatch
+      - invalid_vector
+      required_scopes:
+      - extension:invoke
+    - operation_id: update_chunk
+      display_name: Update Chunk
+      description: 'PostgreSQL pgvector: Replace supplied content, metadata, source or vector fields by
+        stable chunk ID.'
+      operation_kind: action
+      workflow_visible: true
+      connection_type_ids:
+      - toolbox_sql_writer
+      category: database
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+        display_name: Connection
+      - name: chunk_id
+        value_type: text
+        required: true
+        display_name: Chunk Id
+        schema:
+          type: string
+      - name: collection
+        value_type: text
+        required: true
+        display_name: Collection
+        schema:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]{0,47}$
+          minLength: 1
+          maxLength: 48
+      - name: content
+        value_type: text
+        required: false
+        display_name: Content
+        schema:
+          type: string
+      - name: metadata
+        value_type: json
+        required: false
+        display_name: Metadata
+        schema:
+          type: object
+      - name: source
+        value_type: json
+        required: false
+        display_name: Source
+        schema:
+          type: object
+      - name: vector
+        value_type: json
+        required: false
+        display_name: Vector
+        schema:
+          type: array
+          maxItems: 2000
+          minItems: 1
+          items:
+            type: number
+      outputs:
+      - name: records
+        value_type: json
+      - name: count
+        value_type: integer
+      - name: applied
+        value_type: boolean
+      result_fields:
+      - result.records
+      - result.count
+      - result.applied
+      error_codes:
+      - invalid_payload
+      - invalid_connection
+      - effect_claim_required
+      - test_mode_suppressed
+      - provider_unavailable
+      - native_unavailable
+      - invalid_provider_response
+      - response_too_large
+      - network_blocked
+      - timeout
+      - authentication_failed
+      - index_configuration_mismatch
+      - invalid_vector
+      required_scopes:
+      - extension:invoke
+    - operation_id: delete_chunk
+      display_name: Delete Chunk
+      description: 'PostgreSQL pgvector: Delete chunk.'
+      operation_kind: action
+      workflow_visible: true
+      connection_type_ids:
+      - toolbox_sql_writer
+      category: database
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+        display_name: Connection
+      - name: chunk_id
+        value_type: text
+        required: true
+        display_name: Chunk Id
+        schema:
+          type: string
+      - name: collection
+        value_type: text
+        required: true
+        display_name: Collection
+        schema:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]{0,47}$
+          minLength: 1
+          maxLength: 48
+      outputs:
+      - name: records
+        value_type: json
+      - name: count
+        value_type: integer
+      - name: applied
+        value_type: boolean
+      result_fields:
+      - result.records
+      - result.count
+      - result.applied
+      error_codes:
+      - invalid_payload
+      - invalid_connection
+      - effect_claim_required
+      - test_mode_suppressed
+      - provider_unavailable
+      - native_unavailable
+      - invalid_provider_response
+      - response_too_large
+      - network_blocked
+      - timeout
+      - authentication_failed
+      - index_configuration_mismatch
+      - invalid_vector
+      required_scopes:
+      - extension:invoke
+    - operation_id: delete_document
+      display_name: Delete Document
+      description: 'PostgreSQL pgvector: Delete document.'
+      operation_kind: action
+      workflow_visible: true
+      connection_type_ids:
+      - toolbox_sql_writer
+      category: database
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+        display_name: Connection
+      - name: collection
+        value_type: text
+        required: true
+        display_name: Collection
+        schema:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]{0,47}$
+          minLength: 1
+          maxLength: 48
+      - name: document_id
+        value_type: text
+        required: true
+        display_name: Document Id
+        schema:
+          type: string
+      outputs:
+      - name: records
+        value_type: json
+      - name: count
+        value_type: integer
+      - name: applied
+        value_type: boolean
+      result_fields:
+      - result.records
+      - result.count
+      - result.applied
+      error_codes:
+      - invalid_payload
+      - invalid_connection
+      - effect_claim_required
+      - test_mode_suppressed
+      - provider_unavailable
+      - native_unavailable
+      - invalid_provider_response
+      - response_too_large
+      - network_blocked
+      - timeout
+      - authentication_failed
+      - index_configuration_mismatch
+      - invalid_vector
+      required_scopes:
+      - extension:invoke
+    - operation_id: query
+      display_name: Query
+      description: 'PostgreSQL pgvector: Return bounded nearest chunks with JSON metadata containment
+        filter. Cosine score=1-distance; L2 score=1/(1+distance); inner-product score=dot product.'
+      operation_kind: action
+      workflow_visible: true
+      connection_type_ids:
+      - toolbox_sql_writer
+      category: database
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+        display_name: Connection
+      - name: collection
+        value_type: text
+        required: true
+        display_name: Collection
+        schema:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]{0,47}$
+          minLength: 1
+          maxLength: 48
+      - name: include_vector
+        value_type: boolean
+        required: false
+        display_name: Include Vector
+        schema:
+          type: boolean
+      - name: limit
+        value_type: integer
+        required: false
+        display_name: Limit
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: metadata_filter
+        value_type: json
+        required: false
+        display_name: Metadata Filter
+        schema:
+          type: object
+      - name: min_score
+        value_type: number
+        required: false
+        display_name: Min Score
+        schema:
+          type: number
+      - name: vector
+        value_type: json
+        required: true
+        display_name: Vector
+        schema:
+          type: array
+          maxItems: 2000
+          minItems: 1
+          items:
+            type: number
+      outputs:
+      - name: records
+        value_type: json
+      - name: count
+        value_type: integer
+      - name: applied
+        value_type: boolean
+      result_fields:
+      - result.records
+      - result.count
+      - result.applied
+      error_codes:
+      - invalid_payload
+      - invalid_connection
+      - effect_claim_required
+      - test_mode_suppressed
+      - provider_unavailable
+      - native_unavailable
+      - invalid_provider_response
+      - response_too_large
+      - network_blocked
+      - timeout
+      - authentication_failed
+      - index_configuration_mismatch
+      - invalid_vector
+      required_scopes:
+      - extension:invoke
     resource_query_manifest:
     - query_id: runtime_health
       cursor_mode: none
@@ -617,3 +1339,7 @@ runtime:
       error_codes:
       - unknown_query
       - connector_runtime_failed
+    step_ui_manifest: contracts/step_ui_manifest.yaml
+egress:
+  connection_fields:
+  - toolbox_sql_writer.host

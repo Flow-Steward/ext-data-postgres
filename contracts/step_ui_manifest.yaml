@@ -1,0 +1,280 @@
+{
+  "forms": [
+    {
+      "operation_id": "ensure_collection",
+      "title": "Ensure Collection",
+      "fields": [
+        {
+          "name": "collection",
+          "widget_type": "textarea",
+          "label": "Collection",
+          "required": true
+        },
+        {
+          "name": "dimensions",
+          "widget_type": "number",
+          "label": "Dimensions",
+          "required": true
+        },
+        {
+          "name": "metric",
+          "widget_type": "textarea",
+          "label": "Metric",
+          "required": false
+        }
+      ]
+    },
+    {
+      "operation_id": "get_collection",
+      "title": "Get Collection",
+      "fields": [
+        {
+          "name": "collection",
+          "widget_type": "textarea",
+          "label": "Collection",
+          "required": true
+        }
+      ]
+    },
+    {
+      "operation_id": "drop_collection",
+      "title": "Drop Collection",
+      "fields": [
+        {
+          "name": "collection",
+          "widget_type": "textarea",
+          "label": "Collection",
+          "required": true
+        },
+        {
+          "name": "confirm",
+          "widget_type": "boolean",
+          "label": "Confirm",
+          "required": true
+        }
+      ]
+    },
+    {
+      "operation_id": "upsert_chunk",
+      "title": "Upsert Chunk",
+      "fields": [
+        {
+          "name": "chunk_id",
+          "widget_type": "textarea",
+          "label": "Chunk Id",
+          "required": true
+        },
+        {
+          "name": "collection",
+          "widget_type": "textarea",
+          "label": "Collection",
+          "required": true
+        },
+        {
+          "name": "content",
+          "widget_type": "textarea",
+          "label": "Content",
+          "required": false
+        },
+        {
+          "name": "document_id",
+          "widget_type": "textarea",
+          "label": "Document Id",
+          "required": true
+        },
+        {
+          "name": "metadata",
+          "widget_type": "json",
+          "label": "Metadata",
+          "required": false
+        },
+        {
+          "name": "source",
+          "widget_type": "json",
+          "label": "Source",
+          "required": false
+        },
+        {
+          "name": "vector",
+          "widget_type": "json",
+          "label": "Vector",
+          "required": true
+        }
+      ]
+    },
+    {
+      "operation_id": "upsert_document",
+      "title": "Upsert Document",
+      "fields": [
+        {
+          "name": "chunks",
+          "widget_type": "json",
+          "label": "Chunks",
+          "required": true
+        },
+        {
+          "name": "collection",
+          "widget_type": "textarea",
+          "label": "Collection",
+          "required": true
+        },
+        {
+          "name": "document_id",
+          "widget_type": "textarea",
+          "label": "Document Id",
+          "required": true
+        },
+        {
+          "name": "source",
+          "widget_type": "json",
+          "label": "Source",
+          "required": false
+        }
+      ]
+    },
+    {
+      "operation_id": "get_chunk",
+      "title": "Get Chunk",
+      "fields": [
+        {
+          "name": "chunk_id",
+          "widget_type": "textarea",
+          "label": "Chunk Id",
+          "required": true
+        },
+        {
+          "name": "collection",
+          "widget_type": "textarea",
+          "label": "Collection",
+          "required": true
+        },
+        {
+          "name": "include_vector",
+          "widget_type": "boolean",
+          "label": "Include Vector",
+          "required": false
+        }
+      ]
+    },
+    {
+      "operation_id": "update_chunk",
+      "title": "Update Chunk",
+      "fields": [
+        {
+          "name": "chunk_id",
+          "widget_type": "textarea",
+          "label": "Chunk Id",
+          "required": true
+        },
+        {
+          "name": "collection",
+          "widget_type": "textarea",
+          "label": "Collection",
+          "required": true
+        },
+        {
+          "name": "content",
+          "widget_type": "textarea",
+          "label": "Content",
+          "required": false
+        },
+        {
+          "name": "metadata",
+          "widget_type": "json",
+          "label": "Metadata",
+          "required": false
+        },
+        {
+          "name": "source",
+          "widget_type": "json",
+          "label": "Source",
+          "required": false
+        },
+        {
+          "name": "vector",
+          "widget_type": "json",
+          "label": "Vector",
+          "required": false
+        }
+      ]
+    },
+    {
+      "operation_id": "delete_chunk",
+      "title": "Delete Chunk",
+      "fields": [
+        {
+          "name": "chunk_id",
+          "widget_type": "textarea",
+          "label": "Chunk Id",
+          "required": true
+        },
+        {
+          "name": "collection",
+          "widget_type": "textarea",
+          "label": "Collection",
+          "required": true
+        }
+      ]
+    },
+    {
+      "operation_id": "delete_document",
+      "title": "Delete Document",
+      "fields": [
+        {
+          "name": "collection",
+          "widget_type": "textarea",
+          "label": "Collection",
+          "required": true
+        },
+        {
+          "name": "document_id",
+          "widget_type": "textarea",
+          "label": "Document Id",
+          "required": true
+        }
+      ]
+    },
+    {
+      "operation_id": "query",
+      "title": "Query",
+      "fields": [
+        {
+          "name": "collection",
+          "widget_type": "textarea",
+          "label": "Collection",
+          "required": true
+        },
+        {
+          "name": "include_vector",
+          "widget_type": "boolean",
+          "label": "Include Vector",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "widget_type": "number",
+          "label": "Limit",
+          "required": false
+        },
+        {
+          "name": "metadata_filter",
+          "widget_type": "json",
+          "label": "Metadata Filter",
+          "required": false
+        },
+        {
+          "name": "min_score",
+          "widget_type": "number",
+          "label": "Min Score",
+          "required": false
+        },
+        {
+          "name": "vector",
+          "widget_type": "json",
+          "label": "Vector",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
