@@ -92,7 +92,7 @@ TOOLBOX_ENV_FIELDS = {
         "POSTGRES_QUERY_PARAMS": "query_params",
     },
 }
-TOOLBOX_RUNTIME_PREBUILT_ALIASES = {}
+TOOLBOX_RUNTIME_PREBUILT_ALIASES: dict[str, str] = {}
 
 
 def _connector_type_id(prebuilt: str) -> str:

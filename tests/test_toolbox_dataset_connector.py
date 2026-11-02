@@ -67,7 +67,7 @@ EXPECTED_PARAMETER_BINDERS = {
     "cloud-sql-postgres": "numbered",
     "postgres": "numbered",
 }
-EXPECTED_RUNTIME_PREBUILT_ALIASES = {}
+EXPECTED_RUNTIME_PREBUILT_ALIASES: dict[str, str] = {}
 
 
 def toolbox_postgres_config() -> dict[str, str]:
@@ -526,7 +526,7 @@ def test_toolbox_dataset_connector_manifest_is_author_friendly() -> None:
     assert "capabilities" not in descriptor
     connector = contract["dataset_connectors"][0]
     assert connector["connector_id"] == "toolbox_database"
-    assert connector["source_provider"] == VARIANT["display_name"]
+    assert connector["source_provider"] == descriptor["display_name"]
     expected = set(VARIANT["prebuilts"]) if VARIANT else EXPECTED_DATASET_PREBUILTS
     assert DATASET_PREBUILTS == expected
     assert DATASET_PREBUILTS <= EXPECTED_DATASET_PREBUILTS
