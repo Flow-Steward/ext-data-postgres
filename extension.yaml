@@ -190,7 +190,32 @@ runtime:
           password:
             type: string
             title: Password
+            minLength: 1
+            description: Password is required for postgres. Supply password or the
+              matching profile-specific secret env variable. Managed PostgreSQL/MySQL/AlloyDB
+              IAM profiles keep password optional; public config env is not a credential
+              source.
+          env:
+            type: object
+            title: Profile-specific secret environment
+            additionalProperties: false
+            properties:
+              ALLOYDB_OMNI_PASSWORD:
+                type: string
+                minLength: 1
+              ALLOYDB_POSTGRES_PASSWORD:
+                type: string
+                minLength: 1
+              CLOUD_SQL_POSTGRES_PASSWORD:
+                type: string
+                minLength: 1
+              POSTGRES_PASSWORD:
+                type: string
+                minLength: 1
         title: PostgreSQL password
+        description: Password is required for postgres. Supply password or the matching
+          profile-specific secret env variable. Managed PostgreSQL/MySQL/AlloyDB IAM
+          profiles keep password optional; public config env is not a credential source.
       capabilities:
         write_queries: true
       safety_profile:
@@ -391,7 +416,31 @@ runtime:
           password:
             type: string
             title: Password
-            description: Database password for networked Toolbox prebuilts.
+            minLength: 1
+            description: Password is required for postgres. Supply password or the
+              matching profile-specific secret env variable. Managed PostgreSQL/MySQL/AlloyDB
+              IAM profiles keep password optional; public config env is not a credential
+              source.
+          env:
+            type: object
+            title: Profile-specific secret environment
+            additionalProperties: false
+            properties:
+              ALLOYDB_OMNI_PASSWORD:
+                type: string
+                minLength: 1
+              ALLOYDB_POSTGRES_PASSWORD:
+                type: string
+                minLength: 1
+              CLOUD_SQL_POSTGRES_PASSWORD:
+                type: string
+                minLength: 1
+              POSTGRES_PASSWORD:
+                type: string
+                minLength: 1
+        description: Password is required for postgres. Supply password or the matching
+          profile-specific secret env variable. Managed PostgreSQL/MySQL/AlloyDB IAM
+          profiles keep password optional; public config env is not a credential source.
       capabilities:
         read_only: true
         test_connection: true

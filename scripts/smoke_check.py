@@ -48,7 +48,10 @@ def main() -> int:
         "mode": "action",
         "action": {
             "action_id": "introspect_schema",
-            "input": {"connection_config": connection},
+            "input": {
+                "connection_config": connection,
+                "secret_refs": {"values": {"password": "smoke-fixture-value"}},
+            },
         },
     }
     payload = module.handle_request(request)
