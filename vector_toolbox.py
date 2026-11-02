@@ -5,6 +5,7 @@ import contextlib
 import hashlib
 import ipaddress
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import platform
@@ -81,34 +82,100 @@ def _endpoint(config):
         raise Failure("network_blocked", "Endpoint blocked by host network policy.") from exc
 
 
-class _ResolutionTimeout(BaseException):
-    """Escape SDK resolver wrappers that convert Exception into resolution errors."""
+_MAX_RESOLVER_OUTPUT = 8192
 
 
-@contextlib.contextmanager
-def _resolution_deadline(deadline):
-    remaining = deadline - time.monotonic()
-    require(remaining > 0, "Endpoint resolution deadline exceeded.", code="timeout")
-
-    def expired(_signum, _frame):
-        raise _ResolutionTimeout()
-
-    previous_handler = signal.getsignal(signal.SIGALRM)
-    previous_timer = signal.getitimer(signal.ITIMER_REAL)
-    started = time.monotonic()
-    signal.signal(signal.SIGALRM, expired)
-    signal.setitimer(signal.ITIMER_REAL, remaining)
+def _resolver_child(config, write_fd, read_fd):
+    """Resolve with inherited SDK policy; emit only a bounded private pipe result."""
     try:
-        yield
-    except _ResolutionTimeout as exc:
-        raise Failure("timeout", "Endpoint resolution deadline exceeded.") from exc
+        os.close(read_fd)
+        null_fd = os.open(os.devnull, os.O_RDWR)
+        for descriptor in (0, 1, 2):
+            os.dup2(null_fd, descriptor)
+        if null_fd > 2:
+            os.close(null_fd)
+        try:
+            result = {"ips": list(_endpoint(config))}
+        except Exception:
+            result = {"error": True}
+        encoded = json.dumps(result, allow_nan=False).encode("utf-8")
+        if len(encoded) > _MAX_RESOLVER_OUTPUT:
+            encoded = b'{"error":true}'
+        while encoded:
+            written = os.write(write_fd, encoded)
+            if written <= 0:
+                break
+            encoded = encoded[written:]
     finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, previous_handler)
-        delay, interval = previous_timer
-        if delay > 0:
-            delay = max(0.000001, delay - (time.monotonic() - started))
-        signal.setitimer(signal.ITIMER_REAL, delay, interval)
+        # Do not run inherited application exit handlers or flush host stdout.
+        os._exit(0)
+
+
+def _reap_resolver(process):
+    if process.is_alive():
+        process.kill()
+    process.join()
+    process.close()
+
+
+def _resolve_endpoint(config, deadline):
+    """Enforce the deadline independently of libc's blocking DNS implementation."""
+    require(deadline > time.monotonic(), "Endpoint resolution deadline exceeded.", code="timeout")
+    read_fd, write_fd = os.pipe()
+    process = multiprocessing.get_context("fork").Process(
+        target=_resolver_child, args=(config, write_fd, read_fd), daemon=True
+    )
+    try:
+        process.start()
+    except (OSError, RuntimeError) as exc:
+        os.close(read_fd)
+        os.close(write_fd)
+        process.close()
+        raise Failure("network_blocked", "Endpoint resolver is unavailable.") from exc
+    os.close(write_fd)
+    output = bytearray()
+    try:
+        os.set_blocking(read_fd, False)
+        with selectors.DefaultSelector() as selector:
+            selector.register(read_fd, selectors.EVENT_READ)
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not selector.select(remaining):
+                    raise Failure("timeout", "Endpoint resolution deadline exceeded.")
+                try:
+                    chunk = os.read(read_fd, min(4096, _MAX_RESOLVER_OUTPUT + 1 - len(output)))
+                except BlockingIOError:
+                    continue
+                if not chunk:
+                    break
+                output.extend(chunk)
+                require(
+                    len(output) <= _MAX_RESOLVER_OUTPUT,
+                    "Endpoint resolver output exceeded its byte limit.",
+                    code="network_blocked",
+                )
+        try:
+            result = json.loads(output)
+            require(
+                isinstance(result, dict)
+                and set(result) == {"ips"}
+                and isinstance(result["ips"], list)
+                and bool(result["ips"])
+                and all(isinstance(ip, str) for ip in result["ips"]),
+                "Endpoint resolution failed or exceeded its output budget.",
+                code="network_blocked",
+            )
+            ips = tuple(result["ips"])
+            for ip in ips:
+                ipaddress.ip_address(ip)
+            return ips
+        except (ValueError, TypeError, UnicodeError) as exc:
+            raise Failure(
+                "network_blocked", "Endpoint resolver returned an invalid result."
+            ) from exc
+    finally:
+        os.close(read_fd)
+        _reap_resolver(process)
 
 
 def managed_config(config, secrets, command, arguments, ip=None):
@@ -286,8 +353,7 @@ def _result(response):
 def invoke(config, secrets, command, arguments, *, timeout_seconds):
     deadline = time.monotonic() + timeout_seconds
     executable = _binary()
-    with _resolution_deadline(deadline):
-        ip = _endpoint(config)
+    ip = _resolve_endpoint(config, deadline)
     dispatched = False
     process = None
     try:
