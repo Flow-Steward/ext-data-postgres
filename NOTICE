@@ -1,0 +1,18 @@
+Flow Steward Toolbox Dataset Connector
+Copyright 2026 Flow Steward contributors
+
+This extension packages MCP Toolbox for Databases 1.3.0 from
+https://github.com/googleapis/mcp-toolbox at commit
+b0010060a939455d91e4f8ba62dc3e72b1892469.
+
+MCP Toolbox for Databases is Copyright 2024 Google LLC and is licensed under
+the Apache License, Version 2.0. The complete license text is included in
+LICENSE. The packaged linux-amd64 and linux-arm64 executables are reproducible
+source builds because the upstream release does not publish a Linux arm64
+artifact. Flow Steward applies the checked-in patch
+scripts/patches/0001-flowsteward-driver-bound-query-params.patch so saved-query
+values reach native RunSQL driver parameters without SQL interpolation. The
+reproducible Docker build verifies the pinned commit, checks and applies the
+patch, runs the affected Go tests, excludes Oracle, and builds both portable
+Linux targets. Build tools and checksums are recorded in THIRD_PARTY.yml and
+SHA256SUMS.

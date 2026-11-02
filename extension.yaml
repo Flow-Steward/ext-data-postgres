@@ -1,0 +1,570 @@
+manifest_version: 2
+lifecycle:
+  data_schema_version: 1
+  data_migrations: []
+extension_id: flowsteward.data-connector-mcp-toolbox-postgres
+kind: tool_provider
+version: 1.3.0
+release_stage: active
+display_name: PostgreSQL
+description: PostgreSQL dataset reads and parameterized workflow INSERT, UPDATE and
+  DELETE.
+vendor:
+  name: Flow Steward
+  support_url: https://github.com/Flow-Steward/ext-data-postgres/issues
+  website_url: https://github.com/Flow-Steward/ext-data-postgres
+listing:
+  category: data
+  tags:
+  - postgres
+  - database
+  - sql
+  - dataset
+  summary: PostgreSQL dataset reads and parameterized workflow INSERT, UPDATE and
+    DELETE.
+  description: Connect PostgreSQL datasets, inspect schemas, preview saved queries,
+    and run bounded workflow writes.
+package:
+  format: flow-steward-extension
+  license: Apache-2.0
+  includes_source: true
+billing_mode: free
+upgrade_notes: Preserves the installed extension and connection identifiers. Settings
+  and packaging now belong exclusively to PostgreSQL.
+screenshots:
+- label: Overview
+  description: PostgreSQL connection profiles and supported operations.
+  path: ui/components/overview.yaml
+features:
+- tool
+- dataset_connector
+- action
+- query
+required_scopes:
+- extension:invoke
+machine_auth:
+  service_account_key: svc_ext_data_connector_mcp_toolbox_postgres
+  required_scopes:
+  - extension:invoke
+account_scope:
+  scope_type: project
+  description: PostgreSQL connections are project-scoped and resolved through project
+    config and secrets.
+external_effects:
+- operation_id: execute_write
+  effect_kind: database_write
+  channel: toolbox
+  idempotency: required
+  test_mode_behavior: suppress
+schemas:
+  config: schemas/config.schema.yaml
+  secrets: schemas/secrets.schema.yaml
+  subscriptions: schemas/subscriptions.schema.yaml
+entrypoint:
+  mode: subprocess
+  command:
+  - python3
+  - main.py
+health:
+  command:
+  - python3
+  - health.py
+  timeout_seconds: 5
+ui_manifest: ui/ui_manifest.yaml
+query_manifest: ui/queries/queries.yaml
+action_manifest: ui/actions/actions.yaml
+runtime:
+  contract_version: extension_host_v2
+  extension_contract_v2:
+    connection_types:
+    - connection_type_id: toolbox_sql_writer
+      display_name: PostgreSQL
+      description: Project connection for parameterized PostgreSQL workflow writes.
+      config_schema:
+        type: object
+        additionalProperties: false
+        required:
+        - prebuilt
+        properties:
+          prebuilt:
+            type: string
+            title: Connection profile
+            enum: &id001
+            - postgres
+            - alloydb-omni
+            - alloydb-postgres
+            - cloud-sql-postgres
+            description: Select a PostgreSQL connection profile.
+          host:
+            type: string
+            title: Host
+            minLength: 1
+          port:
+            type: integer
+            title: Port
+            minimum: 1
+            maximum: 65535
+          database:
+            type: string
+            title: Database
+            minLength: 1
+          user:
+            type: string
+            title: User
+            minLength: 1
+          query_params:
+            type: string
+            title: Connection query parameters
+          project:
+            type: string
+            title: Cloud project
+            minLength: 1
+          region:
+            type: string
+            title: Cloud region
+            minLength: 1
+          cluster:
+            type: string
+            title: Cluster
+            minLength: 1
+          instance:
+            type: string
+            title: Instance
+            minLength: 1
+          ip_type:
+            type: string
+            title: IP type
+        allOf:
+        - if:
+            properties:
+              prebuilt:
+                const: postgres
+            required:
+            - prebuilt
+          then:
+            required:
+            - database
+            - host
+            - user
+        - if:
+            properties:
+              prebuilt:
+                const: alloydb-omni
+            required:
+            - prebuilt
+          then:
+            required:
+            - database
+            - host
+            - user
+        - if:
+            properties:
+              prebuilt:
+                const: alloydb-postgres
+            required:
+            - prebuilt
+          then:
+            required:
+            - database
+            - project
+            - region
+            - instance
+            - cluster
+        - if:
+            properties:
+              prebuilt:
+                const: cloud-sql-postgres
+            required:
+            - prebuilt
+          then:
+            required:
+            - database
+            - project
+            - region
+            - instance
+        title: PostgreSQL connection
+      secret_schema:
+        type: object
+        additionalProperties: false
+        properties:
+          password:
+            type: string
+            title: Password
+        title: PostgreSQL password
+      capabilities:
+        write_queries: true
+      safety_profile:
+        stores_secret_values: false
+    dataset_connectors:
+    - connector_id: toolbox_database
+      connector_type_id: toolbox_database
+      database_kind: database
+      display_name: PostgreSQL
+      description: Read-only schema inspection and saved queries for PostgreSQL.
+      source_kind: database
+      source_extension_id: flowsteward.data-connector-mcp-toolbox-postgres
+      source_extension_name: PostgreSQL
+      source_provider: PostgreSQL
+      query_language: sql
+      access_mode: read_only
+      runtime_kind: local_extension
+      runtime_adapter_ref: extensions/flowsteward_data_connector_mcp_toolbox_postgres/main.py
+      connector_catalog:
+      - source_kind: alloydb-omni
+        connector_type_id: toolbox_alloydb_omni
+        display_name: AlloyDB Omni
+        query_language: sql
+        preset_config:
+          prebuilt: alloydb-omni
+      - source_kind: alloydb-postgres
+        connector_type_id: toolbox_alloydb_postgres
+        display_name: AlloyDB for PostgreSQL
+        query_language: sql
+        preset_config:
+          prebuilt: alloydb-postgres
+      - source_kind: cloud-sql-postgres
+        connector_type_id: toolbox_cloud_sql_postgres
+        display_name: Cloud SQL for PostgreSQL
+        query_language: sql
+        preset_config:
+          prebuilt: cloud-sql-postgres
+      - source_kind: postgres
+        connector_type_id: toolbox_postgres
+        display_name: PostgreSQL
+        query_language: sql
+        preset_config:
+          prebuilt: postgres
+      connection_schema:
+        type: object
+        additionalProperties: false
+        required:
+        - prebuilt
+        properties:
+          prebuilt:
+            type: string
+            title: Connection profile
+            enum: *id001
+            description: Select a PostgreSQL connection profile.
+          database:
+            type: string
+            title: Database or dataset
+            description: Database, dataset, namespace, or local file value used by
+              this Toolbox source when applicable.
+          host:
+            type: string
+            title: Host
+            description: Host for networked Toolbox sources when applicable.
+          port:
+            type: integer
+            minimum: 1
+            maximum: 65535
+            title: Port
+            description: Port for networked Toolbox sources when applicable.
+          user:
+            type: string
+            title: User
+            description: User name for sources that authenticate with a database user.
+          query_params:
+            type: string
+            title: Query params
+            description: Optional connection query params passed to Toolbox when supported
+              by the source.
+          project:
+            type: string
+            title: Cloud project
+          region:
+            type: string
+            title: Cloud region
+          cluster:
+            type: string
+            title: Cluster
+          instance:
+            type: string
+            title: Instance
+          ip_type:
+            type: string
+            title: IP type
+          env:
+            type: object
+            title: Profile environment overrides
+            additionalProperties: false
+            properties:
+              ALLOYDB_OMNI_HOST:
+                type: string
+              ALLOYDB_OMNI_PORT:
+                type: string
+              ALLOYDB_OMNI_DATABASE:
+                type: string
+              ALLOYDB_OMNI_USER:
+                type: string
+              ALLOYDB_OMNI_QUERY_PARAMS:
+                type: string
+              ALLOYDB_POSTGRES_PROJECT:
+                type: string
+              ALLOYDB_POSTGRES_REGION:
+                type: string
+              ALLOYDB_POSTGRES_CLUSTER:
+                type: string
+              ALLOYDB_POSTGRES_INSTANCE:
+                type: string
+              ALLOYDB_POSTGRES_DATABASE:
+                type: string
+              ALLOYDB_POSTGRES_USER:
+                type: string
+              ALLOYDB_POSTGRES_IP_TYPE:
+                type: string
+              CLOUD_SQL_POSTGRES_PROJECT:
+                type: string
+              CLOUD_SQL_POSTGRES_REGION:
+                type: string
+              CLOUD_SQL_POSTGRES_INSTANCE:
+                type: string
+              CLOUD_SQL_POSTGRES_DATABASE:
+                type: string
+              CLOUD_SQL_POSTGRES_USER:
+                type: string
+              CLOUD_SQL_POSTGRES_IP_TYPE:
+                type: string
+              POSTGRES_HOST:
+                type: string
+              POSTGRES_PORT:
+                type: string
+              POSTGRES_DATABASE:
+                type: string
+              POSTGRES_USER:
+                type: string
+              POSTGRES_QUERY_PARAMS:
+                type: string
+        allOf:
+        - if:
+            properties:
+              prebuilt:
+                const: postgres
+            required:
+            - prebuilt
+          then:
+            required:
+            - database
+            - host
+            - user
+        - if:
+            properties:
+              prebuilt:
+                const: alloydb-omni
+            required:
+            - prebuilt
+          then:
+            required:
+            - database
+            - host
+            - user
+        - if:
+            properties:
+              prebuilt:
+                const: alloydb-postgres
+            required:
+            - prebuilt
+          then:
+            required:
+            - database
+            - project
+            - region
+            - instance
+            - cluster
+        - if:
+            properties:
+              prebuilt:
+                const: cloud-sql-postgres
+            required:
+            - prebuilt
+          then:
+            required:
+            - database
+            - project
+            - region
+            - instance
+        title: PostgreSQL connection
+      secret_schema:
+        type: object
+        additionalProperties: false
+        properties:
+          password:
+            type: string
+            title: Password
+            description: Database password for networked Toolbox prebuilts.
+      capabilities:
+        read_only: true
+        test_connection: true
+        schema_introspection: true
+        validate_query: true
+        preview_query: true
+        execute_template: true
+        infer_output_schema: true
+        write_queries: false
+        row_preview: true
+      safety_profile:
+        access_mode: read_only
+        indexes_rows: false
+        executes_write_queries: false
+        requires_saved_template: true
+      preview_support: true
+      schema_refresh_support: true
+    operation_manifest:
+    - operation_id: execute_write
+      display_name: Execute PostgreSQL write
+      workflow_visible: true
+      operation_kind: action
+      category: database
+      description: Execute one parameterized INSERT, UPDATE or DELETE using the selected
+        project connection. INSERT supports database-specific upsert syntax.
+      connection_type_ids:
+      - toolbox_sql_writer
+      required_scopes:
+      - extension:invoke
+      inputs:
+      - name: connection_ref
+        value_type: connection_ref
+        required: true
+      - name: sql
+        value_type: text
+        required: true
+      - name: params
+        value_type: object
+        required: false
+      - name: param_schema
+        value_type: object
+        required: false
+      outputs:
+      - name: status
+        value_type: text
+      - name: rows
+        value_type: array
+      - name: returned_row_count
+        value_type: integer
+      result_fields:
+      - result.status
+      - result.rows
+      - result.returned_row_count
+      error_codes:
+      - invalid_payload
+      - write_outcome_unknown
+    - operation_id: test_connection
+      workflow_visible: false
+      operation_kind: action
+      description: Validate that the PostgreSQL driver can list tables for the configured
+        PostgreSQL connection.
+      required_scopes:
+      - extension:invoke
+      result_fields:
+      - result.status
+      - result.connector_id
+      - result.metadata.toolbox_prebuilt
+      error_codes:
+      - invalid_config
+      - not_found
+      - permission_denied
+      - connector_runtime_failed
+      - unknown_action
+    - operation_id: introspect_schema
+      workflow_visible: false
+      operation_kind: action
+      description: Return a normalized typed schema snapshot from the PostgreSQL driver
+        list_tables output.
+      required_scopes:
+      - extension:invoke
+      result_fields:
+      - result.schema_snapshot.schema_version
+      - result.schema_snapshot.resources[].resource_id
+      - result.schema_snapshot.resources[].columns[].name
+      - result.schema_snapshot.resources[].indexes[].columns[]
+      - result.resource_count
+      error_codes:
+      - invalid_config
+      - not_found
+      - permission_denied
+      - connector_runtime_failed
+      - unknown_action
+    - operation_id: validate_query
+      workflow_visible: false
+      operation_kind: action
+      description: Validate a saved read-only query template against dataset resource
+        scope.
+      required_scopes:
+      - extension:invoke
+      result_fields:
+      - result.valid
+      - result.read_only
+      - result.referenced_resources[]
+      error_codes:
+      - invalid_config
+      - connector_runtime_failed
+      - unknown_action
+    - operation_id: preview_query
+      workflow_visible: false
+      operation_kind: action
+      description: Execute a bounded read-only preview for a validated query template.
+      required_scopes:
+      - extension:invoke
+      result_fields:
+      - result.rows[]
+      - result.row_count
+      - result.output_schema
+      error_codes:
+      - invalid_config
+      - connector_runtime_failed
+      - unknown_action
+    - operation_id: execute_template
+      workflow_visible: false
+      operation_kind: action
+      description: Execute a saved read-only query template with named parameters
+        and runtime row limits.
+      required_scopes:
+      - extension:invoke
+      result_fields:
+      - result.rows[]
+      - result.row_count
+      - result.output_schema
+      - result.truncated
+      error_codes:
+      - invalid_config
+      - connector_runtime_failed
+      - unknown_action
+    - operation_id: infer_output_schema
+      workflow_visible: false
+      operation_kind: action
+      description: Infer output schema from a bounded read-only preview of the query
+        template.
+      required_scopes:
+      - extension:invoke
+      result_fields:
+      - result.output_schema
+      error_codes:
+      - invalid_config
+      - connector_runtime_failed
+      - unknown_action
+    resource_query_manifest:
+    - query_id: runtime_health
+      cursor_mode: none
+      description: Return extension runtime health.
+      required_scopes:
+      - extension:invoke
+      result_fields:
+      - result.status
+      - result.extension_id
+      error_codes:
+      - unknown_query
+      - connector_runtime_failed
+    - query_id: supported_connectors
+      cursor_mode: none
+      description: Return the supported connector catalog for this extension.
+      required_scopes:
+      - extension:invoke
+      result_fields:
+      - result.connectors[].connector_type_id
+      - result.connectors[].display_name
+      - result.connectors[].database_kind
+      - result.connectors[].source_provider
+      - result.connectors[].access_mode
+      error_codes:
+      - unknown_query
+      - connector_runtime_failed

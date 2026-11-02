@@ -1,0 +1,33 @@
+name: MCP Toolbox for Databases
+version: 1.3.0
+tag: v1.3.0
+commit: b0010060a939455d91e4f8ba62dc3e72b1892469
+source_url: https://github.com/googleapis/mcp-toolbox
+license: Apache-2.0
+release:
+  published_at: 2026-05-21 21:49:59+00:00
+  official_linux_amd64_url: https://storage.googleapis.com/mcp-toolbox-for-databases/v1.3.0/linux/amd64/toolbox
+  official_linux_amd64_bytes: 287397352
+  official_linux_arm64_available: false
+build:
+  script: scripts/build_toolbox.sh
+  container_image: golang:1.26.2-bookworm@sha256:47ce5636e9936b2c5cbf708925578ef386b4f8872aec74a67bd13a627d242b19
+  go_version: 1.26.2
+  targets:
+  - linux-amd64
+  - linux-arm64
+  flags:
+  - -trimpath
+  - -buildvcs=false
+  - -s
+  - -w
+  - -buildid=
+  registered_prebuilts:
+  - alloydb-omni
+  - alloydb-postgres
+  - cloud-sql-postgres
+  - postgres
+  local_patch: scripts/patches/0001-flowsteward-driver-bound-query-params.patch
+  local_patch_purpose: Pass saved-query values to upstream RunSQL driver parameters
+    without SQL interpolation.
+  network_at_install_or_runtime: false

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flowsteward-postgres-extension"
+version = "1.3.0"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Packaged tests need the Toolbox binaries a variant build adds under bin/; CI
+# runs them inside each rendered variant with -m "packaged or variant_contract".
+# A plain run (and the Flow Steward extension gate) checks the connector logic.
+addopts = "-m 'not packaged'"
+markers = [
+    "packaged: needs this package's Toolbox binaries; runs inside each rendered variant",
+    "variant_contract: what this package offers matches its variant",
+]
+
+
+# The Flow Steward extension gate runs ruff, mypy and bandit from this folder
+# (and from every variant rendered from it).
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = [".fs-python", "dev-wheels", "wheels", "bin"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+explicit_package_bases = true
+exclude = "(^\\.fs-python/|^dev-wheels/|^wheels/|^bin/)"

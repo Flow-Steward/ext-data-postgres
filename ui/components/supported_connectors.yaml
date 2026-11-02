@@ -1,0 +1,13 @@
+component_id: toolbox_dataset_connector_supported_connectors
+type: grid
+title: Connection profiles
+query_id: supported_connectors
+columns:
+  - {key: connector_type_id, label: Connector type, type: id}
+  - {key: display_name, label: Display name, type: text}
+  - {key: database_kind, label: Database kind, type: badge}
+  - {key: source_provider, label: Provider, type: text}
+  - {key: access_mode, label: Access mode, type: badge}
+empty_state:
+  title: No supported connectors
+  description: Only implemented and tested dataset connectors appear here.

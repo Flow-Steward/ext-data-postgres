@@ -1,0 +1,6 @@
+page_id: supported_connectors
+project_scoped: false
+title: Connection profiles
+description: Connector catalog exposed by this extension.
+components:
+  - ref: ../components/supported_connectors.yaml

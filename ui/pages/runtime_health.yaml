@@ -1,0 +1,5 @@
+page_id: runtime_health
+title: Runtime health
+description: Subprocess health and supported runtime actions.
+components:
+  - ref: ../components/runtime_health.yaml

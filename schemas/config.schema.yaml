@@ -1,0 +1,145 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: PostgreSQL connection
+type: object
+additionalProperties: false
+required:
+- prebuilt
+properties:
+  prebuilt:
+    type: string
+    enum:
+    - postgres
+    - alloydb-omni
+    - alloydb-postgres
+    - cloud-sql-postgres
+    description: Select a PostgreSQL connection profile.
+    title: Connection profile
+  database:
+    type: string
+    description: Database name for the selected external source.
+  host:
+    type: string
+    description: Database host for networked Toolbox prebuilts.
+  port:
+    type: string
+    description: Database port for networked Toolbox prebuilts.
+  user:
+    type: string
+    description: Database user for networked Toolbox prebuilts.
+  query_params:
+    type: string
+    description: Optional PostgreSQL query params passed to Toolbox.
+  project:
+    type: string
+    description: Cloud project for managed Google Cloud sources.
+  region:
+    type: string
+    description: Cloud region for managed Google Cloud sources.
+  cluster:
+    type: string
+    description: Cluster identifier for managed database sources.
+  instance:
+    type: string
+    description: Instance identifier for managed database sources.
+  ip_type:
+    type: string
+    description: Public or private IP mode for managed database sources.
+  env:
+    type: object
+    title: Profile environment overrides
+    additionalProperties: false
+    properties:
+      ALLOYDB_OMNI_HOST:
+        type: string
+      ALLOYDB_OMNI_PORT:
+        type: string
+      ALLOYDB_OMNI_DATABASE:
+        type: string
+      ALLOYDB_OMNI_USER:
+        type: string
+      ALLOYDB_OMNI_QUERY_PARAMS:
+        type: string
+      ALLOYDB_POSTGRES_PROJECT:
+        type: string
+      ALLOYDB_POSTGRES_REGION:
+        type: string
+      ALLOYDB_POSTGRES_CLUSTER:
+        type: string
+      ALLOYDB_POSTGRES_INSTANCE:
+        type: string
+      ALLOYDB_POSTGRES_DATABASE:
+        type: string
+      ALLOYDB_POSTGRES_USER:
+        type: string
+      ALLOYDB_POSTGRES_IP_TYPE:
+        type: string
+      CLOUD_SQL_POSTGRES_PROJECT:
+        type: string
+      CLOUD_SQL_POSTGRES_REGION:
+        type: string
+      CLOUD_SQL_POSTGRES_INSTANCE:
+        type: string
+      CLOUD_SQL_POSTGRES_DATABASE:
+        type: string
+      CLOUD_SQL_POSTGRES_USER:
+        type: string
+      CLOUD_SQL_POSTGRES_IP_TYPE:
+        type: string
+      POSTGRES_HOST:
+        type: string
+      POSTGRES_PORT:
+        type: string
+      POSTGRES_DATABASE:
+        type: string
+      POSTGRES_USER:
+        type: string
+      POSTGRES_QUERY_PARAMS:
+        type: string
+allOf:
+- if:
+    properties:
+      prebuilt:
+        const: postgres
+    required:
+    - prebuilt
+  then:
+    required:
+    - database
+    - host
+    - user
+- if:
+    properties:
+      prebuilt:
+        const: alloydb-omni
+    required:
+    - prebuilt
+  then:
+    required:
+    - database
+    - host
+    - user
+- if:
+    properties:
+      prebuilt:
+        const: alloydb-postgres
+    required:
+    - prebuilt
+  then:
+    required:
+    - database
+    - project
+    - region
+    - instance
+    - cluster
+- if:
+    properties:
+      prebuilt:
+        const: cloud-sql-postgres
+    required:
+    - prebuilt
+  then:
+    required:
+    - database
+    - project
+    - region
+    - instance

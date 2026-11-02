@@ -1,0 +1,7 @@
+component_id: toolbox_dataset_connector_overview
+type: markdown
+title: PostgreSQL
+body: PostgreSQL supports schema inspection, bounded saved-query reads and parameterized
+  workflow INSERT, UPDATE and DELETE. Select a supported connection profile and supply
+  its database or managed-cloud settings. Writes require a project connection and
+  are suppressed in test mode. No triggers or schema-changing operations are exposed.

@@ -1,0 +1,606 @@
+diff --git a/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go b/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go
+index 55c8ccc..b542f3f 100644
+--- a/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go
++++ b/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go
+@@ -24,6 +24,7 @@ import (
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+ 	"github.com/googleapis/mcp-toolbox/internal/tools"
+ 	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
+ 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
+ )
+ 
+@@ -65,8 +66,7 @@ func (cfg Config) ToolConfigType() string {
+ }
+ 
+ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
+-	sqlParameter := parameters.NewStringParameter("sql", "The SQL statement to execute.")
+-	params := parameters.Parameters{sqlParameter}
++	params := flowstewardbinding.ToolParameters()
+ 
+ 	t := Tool{
+ 		Config:     cfg,
+@@ -110,12 +110,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, err)
+ 	}
+ 
+-	paramsMap := params.AsMap()
+-	sql, ok := paramsMap["sql"].(string)
+-	if !ok {
+-		return nil, util.NewAgentError(fmt.Sprintf("unable to cast sql parameter %s", paramsMap["sql"]), nil)
++	boundQuery, bindErr := flowstewardbinding.Parse(params)
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid bound query", bindErr)
+ 	}
+-	resp, err := source.RunSQL(ctx, sql, nil)
++	driverParams, bindErr := boundQuery.ParamValues()
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid clickhouse binding", bindErr)
++	}
++	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
+ 	if err != nil {
+ 		return nil, util.ProcessGeneralError(err)
+ 	}
+diff --git a/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go b/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
+index 0bf8e69..84fd8e2 100644
+--- a/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
++++ b/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
+@@ -25,6 +25,7 @@ import (
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+ 	"github.com/googleapis/mcp-toolbox/internal/tools"
+ 	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
+ 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
+ )
+ 
+@@ -68,8 +69,7 @@ func (cfg Config) ToolConfigType() string {
+ }
+ 
+ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
+-	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
+-	params := parameters.Parameters{sqlParameter}
++	params := flowstewardbinding.ToolParameters()
+ 
+ 	// finish tool setup
+ 	t := Tool{
+@@ -107,7 +107,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
+ 	}
+ 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
++	boundQuery, bindErr := flowstewardbinding.Parse(params)
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid bound query", bindErr)
++	}
++	driverParams, bindErr := boundQuery.NamedPositional()
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid mssql binding", bindErr)
++	}
++	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
+ 	if err != nil {
+ 		return nil, util.ProcessGeneralError(err)
+ 	}
+diff --git a/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go b/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go
+index 6fff872..b365894 100644
+--- a/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go
++++ b/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go
+@@ -25,6 +25,7 @@ import (
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+ 	"github.com/googleapis/mcp-toolbox/internal/tools"
+ 	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
+ 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
+ )
+ 
+@@ -68,8 +69,7 @@ func (cfg Config) ToolConfigType() string {
+ }
+ 
+ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
+-	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
+-	params := parameters.Parameters{sqlParameter}
++	params := flowstewardbinding.ToolParameters()
+ 
+ 	// finish tool setup
+ 	t := Tool{
+@@ -107,7 +107,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
+ 	}
+ 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
++	boundQuery, bindErr := flowstewardbinding.Parse(params)
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid bound query", bindErr)
++	}
++	driverParams, bindErr := boundQuery.Positional()
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid mysql binding", bindErr)
++	}
++	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
+ 	if err != nil {
+ 		return nil, util.ProcessGeneralError(err)
+ 	}
+diff --git a/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go b/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go
+index 6471331..c38a95f 100644
+--- a/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go
++++ b/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go
+@@ -25,6 +25,7 @@ import (
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+ 	"github.com/googleapis/mcp-toolbox/internal/tools"
+ 	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
+ 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
+ )
+ 
+@@ -68,8 +69,7 @@ func (cfg Config) ToolConfigType() string {
+ }
+ 
+ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
+-	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
+-	params := parameters.Parameters{sqlParameter}
++	params := flowstewardbinding.ToolParameters()
+ 
+ 	// finish tool setup
+ 	t := Tool{
+@@ -96,12 +96,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, err)
+ 	}
+ 
+-	sliceParams := params.AsSlice()
+-	sqlStr, ok := sliceParams[0].(string)
+-	if !ok {
+-		return nil, util.NewAgentError(fmt.Sprintf("unable to get cast %s", sliceParams[0]), nil)
++	boundQuery, bindErr := flowstewardbinding.Parse(params)
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid bound query", bindErr)
+ 	}
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
++	driverParams, bindErr := boundQuery.Positional()
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid oceanbase binding", bindErr)
++	}
++	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
+ 	if err != nil {
+ 		return nil, util.ProcessGeneralError(err)
+ 	}
+diff --git a/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go b/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go
+index ae442ce..9899c1f 100644
+--- a/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go
++++ b/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go
+@@ -24,6 +24,7 @@ import (
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+ 	"github.com/googleapis/mcp-toolbox/internal/tools"
+ 	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
+ 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
+ 	"github.com/jackc/pgx/v5/pgxpool"
+ )
+@@ -67,8 +68,7 @@ func (cfg Config) ToolConfigType() string {
+ }
+ 
+ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
+-	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
+-	params := parameters.Parameters{sqlParameter}
++	params := flowstewardbinding.ToolParameters()
+ 
+ 	t := Tool{
+ 		Config:     cfg,
+@@ -103,7 +103,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 	}
+ 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sql))
+ 
+-	resp, err := source.RunSQL(ctx, sql, nil)
++	boundQuery, bindErr := flowstewardbinding.Parse(params)
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid bound query", bindErr)
++	}
++	driverParams, bindErr := boundQuery.Positional()
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid postgres binding", bindErr)
++	}
++	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
+ 	if err != nil {
+ 		return nil, util.ProcessGeneralError(err)
+ 	}
+diff --git a/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go b/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go
+index cdc54a3..5f84801 100644
+--- a/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go
++++ b/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go
+@@ -25,6 +25,7 @@ import (
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+ 	"github.com/googleapis/mcp-toolbox/internal/tools"
+ 	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
+ 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
+ )
+ 
+@@ -71,8 +72,7 @@ func (cfg Config) ToolConfigType() string {
+ 
+ // Initialize sets up the Tool using the provided sources map.
+ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
+-	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
+-	params := parameters.Parameters{sqlParameter}
++	params := flowstewardbinding.ToolParameters()
+ 
+ 	// finish tool setup
+ 	t := Tool{
+@@ -133,7 +133,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 	}
+ 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+ 
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
++	boundQuery, bindErr := flowstewardbinding.Parse(params)
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid bound query", bindErr)
++	}
++	driverParams, bindErr := boundQuery.Positional()
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid singlestore binding", bindErr)
++	}
++	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
+ 	if err != nil {
+ 		return nil, util.ProcessGeneralError(err)
+ 	}
+diff --git a/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go b/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go
+index 0c7fc90..c8843b3 100644
+--- a/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go
++++ b/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go
+@@ -24,6 +24,7 @@ import (
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+ 	"github.com/googleapis/mcp-toolbox/internal/tools"
+ 	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
+ 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
+ 	"github.com/jmoiron/sqlx"
+ )
+@@ -68,8 +69,7 @@ func (cfg Config) ToolConfigType() string {
+ }
+ 
+ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
+-	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
+-	params := parameters.Parameters{sqlParameter}
++	params := flowstewardbinding.ToolParameters()
+ 
+ 	// finish tool setup
+ 	t := Tool{
+@@ -108,7 +108,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 	}
+ 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+ 
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
++	boundQuery, bindErr := flowstewardbinding.Parse(params)
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid bound query", bindErr)
++	}
++	driverParams, bindErr := boundQuery.Positional()
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid snowflake binding", bindErr)
++	}
++	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
+ 	if err != nil {
+ 		return nil, util.ProcessGeneralError(err)
+ 	}
+diff --git a/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go b/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go
+index 2acb7f4..17de5e9 100644
+--- a/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go
++++ b/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go
+@@ -25,6 +25,7 @@ import (
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+ 	"github.com/googleapis/mcp-toolbox/internal/tools"
+ 	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
+ 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
+ )
+ 
+@@ -70,8 +71,7 @@ func (cfg Config) ToolConfigType() string {
+ }
+ 
+ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
+-	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
+-	params := parameters.Parameters{sqlParameter}
++	params := flowstewardbinding.ToolParameters()
+ 
+ 	// finish tool setup
+ 	t := Tool{
+@@ -109,7 +109,20 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
+ 	}
+ 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sql))
+-	resp, err := source.RunSQL(ctx, t.ReadOnly, sql, nil)
++	boundQuery, bindErr := flowstewardbinding.Parse(params)
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid bound query", bindErr)
++	}
++	var driverParams map[string]any
++	if boundQuery.Binding == flowstewardbinding.BindingNamed {
++		driverParams, bindErr = boundQuery.NamedMap()
++	} else {
++		driverParams, bindErr = boundQuery.NumberedMap()
++	}
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid spanner binding", bindErr)
++	}
++	resp, err := source.RunSQL(ctx, t.ReadOnly, boundQuery.SQL, driverParams)
+ 	if err != nil {
+ 		return nil, util.ProcessGcpError(err)
+ 	}
+diff --git a/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go b/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go
+index a1f6fec..4275884 100644
+--- a/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go
++++ b/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go
+@@ -25,6 +25,7 @@ import (
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+ 	"github.com/googleapis/mcp-toolbox/internal/tools"
+ 	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
+ 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
+ )
+ 
+@@ -68,8 +69,7 @@ func (cfg Config) ToolConfigType() string {
+ }
+ 
+ func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
+-	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
+-	params := parameters.Parameters{sqlParameter}
++	params := flowstewardbinding.ToolParameters()
+ 
+ 	// finish tool setup
+ 	t := Tool{
+@@ -110,7 +110,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 	}
+ 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+ 
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
++	boundQuery, bindErr := flowstewardbinding.Parse(params)
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid bound query", bindErr)
++	}
++	driverParams, bindErr := boundQuery.Positional()
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid sqlite binding", bindErr)
++	}
++	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
+ 	if err != nil {
+ 		return nil, util.ProcessGeneralError(err)
+ 	}
+diff --git a/internal/util/flowstewardbinding/binding.go b/internal/util/flowstewardbinding/binding.go
+new file mode 100644
+index 0000000..25f3233
+--- /dev/null
++++ b/internal/util/flowstewardbinding/binding.go
+@@ -0,0 +1,148 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++
++package flowstewardbinding
++
++import (
++	"bytes"
++	"database/sql"
++	"encoding/json"
++	"fmt"
++
++	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++)
++
++const (
++	BindingNamed           = "named"
++	BindingNamedPositional = "named-positional"
++	BindingNumberedMap     = "numbered-map"
++	BindingNumbered        = "numbered"
++	BindingPositional      = "positional"
++)
++
++type BoundQuery struct {
++	SQL        string
++	Values     map[string]any
++	ParamOrder []string
++	Binding    string
++}
++
++func ToolParameters() parameters.Parameters {
++	return parameters.Parameters{
++		parameters.NewStringParameter("sql", "The SQL statement with driver placeholders."),
++		parameters.NewStringParameter("params_json", "Canonical JSON named runtime values bound by the database driver."),
++		parameters.NewArrayParameter(
++			"param_order",
++			"Parameter names in placeholder occurrence order.",
++			parameters.NewStringParameter("name", "A declared parameter name."),
++		),
++		parameters.NewStringParameter("binding", "The selected driver binding strategy."),
++	}
++}
++
++func Parse(values parameters.ParamValues) (BoundQuery, error) {
++	input := values.AsMap()
++	statement, ok := input["sql"].(string)
++	if !ok || statement == "" {
++		return BoundQuery{}, fmt.Errorf("sql parameter must be a non-empty string")
++	}
++	paramsJSON, ok := input["params_json"].(string)
++	if !ok {
++		return BoundQuery{}, fmt.Errorf("params_json parameter must be a JSON object string")
++	}
++	decoder := json.NewDecoder(bytes.NewBufferString(paramsJSON))
++	decoder.UseNumber()
++	params := map[string]any{}
++	if err := decoder.Decode(&params); err != nil {
++		return BoundQuery{}, fmt.Errorf("params_json parameter must contain a JSON object: %w", err)
++	}
++	convertedParams, err := util.ConvertNumbers(params)
++	if err != nil {
++		return BoundQuery{}, fmt.Errorf("params_json contains an unsupported number: %w", err)
++	}
++	params, ok = convertedParams.(map[string]any)
++	if !ok {
++		return BoundQuery{}, fmt.Errorf("params_json parameter must contain a JSON object")
++	}
++	rawOrder, ok := input["param_order"].([]any)
++	if !ok {
++		return BoundQuery{}, fmt.Errorf("param_order parameter must be an array")
++	}
++	order := make([]string, 0, len(rawOrder))
++	for index, value := range rawOrder {
++		name, ok := value.(string)
++		if !ok || name == "" {
++			return BoundQuery{}, fmt.Errorf("param_order[%d] must be a non-empty string", index)
++		}
++		if _, exists := params[name]; !exists {
++			return BoundQuery{}, fmt.Errorf("param_order references missing parameter %q", name)
++		}
++		order = append(order, name)
++	}
++	binding, ok := input["binding"].(string)
++	if !ok || !supportedBinding(binding) {
++		return BoundQuery{}, fmt.Errorf("unsupported binding strategy %q", binding)
++	}
++	return BoundQuery{SQL: statement, Values: params, ParamOrder: order, Binding: binding}, nil
++}
++
++func supportedBinding(binding string) bool {
++	switch binding {
++	case BindingNamed, BindingNamedPositional, BindingNumberedMap, BindingNumbered, BindingPositional:
++		return true
++	default:
++		return false
++	}
++}
++
++func (q BoundQuery) Positional() ([]any, error) {
++	if q.Binding != BindingPositional && q.Binding != BindingNumbered {
++		return nil, fmt.Errorf("binding %q is not positional", q.Binding)
++	}
++	result := make([]any, 0, len(q.ParamOrder))
++	for _, name := range q.ParamOrder {
++		result = append(result, q.Values[name])
++	}
++	return result, nil
++}
++
++func (q BoundQuery) NamedPositional() ([]any, error) {
++	if q.Binding != BindingNamedPositional {
++		return nil, fmt.Errorf("binding %q is not named-positional", q.Binding)
++	}
++	result := make([]any, 0, len(q.ParamOrder))
++	for index, name := range q.ParamOrder {
++		result = append(result, sql.Named(fmt.Sprintf("p%d", index+1), q.Values[name]))
++	}
++	return result, nil
++}
++
++func (q BoundQuery) ParamValues() (parameters.ParamValues, error) {
++	if q.Binding != BindingPositional {
++		return nil, fmt.Errorf("binding %q is not positional", q.Binding)
++	}
++	result := make(parameters.ParamValues, 0, len(q.ParamOrder))
++	for _, name := range q.ParamOrder {
++		result = append(result, parameters.ParamValue{Name: name, Value: q.Values[name]})
++	}
++	return result, nil
++}
++
++func (q BoundQuery) NamedMap() (map[string]any, error) {
++	if q.Binding != BindingNamed {
++		return nil, fmt.Errorf("binding %q is not named", q.Binding)
++	}
++	return q.Values, nil
++}
++
++func (q BoundQuery) NumberedMap() (map[string]any, error) {
++	if q.Binding != BindingNumberedMap {
++		return nil, fmt.Errorf("binding %q is not numbered-map", q.Binding)
++	}
++	result := make(map[string]any, len(q.ParamOrder))
++	for index, name := range q.ParamOrder {
++		result[fmt.Sprintf("p%d", index+1)] = q.Values[name]
++	}
++	return result, nil
++}
+diff --git a/internal/util/flowstewardbinding/binding_test.go b/internal/util/flowstewardbinding/binding_test.go
+new file mode 100644
+index 0000000..2e44dc6
+--- /dev/null
++++ b/internal/util/flowstewardbinding/binding_test.go
+@@ -0,0 +1,82 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++
++package flowstewardbinding
++
++import (
++	"encoding/json"
++	"testing"
++
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++)
++
++func TestBoundQueryPreservesLargeInteger(t *testing.T) {
++	query, err := Parse(parameters.ParamValues{
++		{Name: "sql", Value: "SELECT id FROM events WHERE id = $1"},
++		{Name: "params_json", Value: `{"id":9007199254740993}`},
++		{Name: "param_order", Value: []any{"id"}},
++		{Name: "binding", Value: BindingNumbered},
++	})
++	if err != nil {
++		t.Fatalf("Parse() error = %v", err)
++	}
++	values, err := query.Positional()
++	if err != nil {
++		t.Fatalf("Positional() error = %v", err)
++	}
++	if got, ok := values[0].(int64); !ok || got != 9007199254740993 {
++		t.Fatalf("large integer lost precision: %#v", values[0])
++	}
++	if _, ok := query.Values["id"].(json.Number); ok {
++		t.Fatal("large integer was not converted for the database driver")
++	}
++}
++
++func TestBoundValuesRemainSeparateAndRepeated(t *testing.T) {
++	query, err := Parse(parameters.ParamValues{
++		{Name: "sql", Value: "SELECT * FROM events WHERE event = $1 OR parent = $2"},
++		{Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`},
++		{Name: "param_order", Value: []any{"event", "event"}},
++		{Name: "binding", Value: BindingNumbered},
++	})
++	if err != nil {
++		t.Fatalf("Parse() error = %v", err)
++	}
++	values, err := query.Positional()
++	if err != nil {
++		t.Fatalf("Positional() error = %v", err)
++	}
++	if query.SQL != "SELECT * FROM events WHERE event = $1 OR parent = $2" {
++		t.Fatalf("SQL was modified with a runtime value: %q", query.SQL)
++	}
++	if len(values) != 2 || values[0] != "x' OR 1=1 --" || values[1] != values[0] {
++		t.Fatalf("unexpected positional values: %#v", values)
++	}
++}
++
++func TestNumberedMapPreservesOccurrenceOrder(t *testing.T) {
++	query := BoundQuery{
++		Values:     map[string]any{"event": "open"},
++		ParamOrder: []string{"event", "event"},
++		Binding:    BindingNumberedMap,
++	}
++	values, err := query.NumberedMap()
++	if err != nil {
++		t.Fatalf("NumberedMap() error = %v", err)
++	}
++	if values["p1"] != "open" || values["p2"] != "open" {
++		t.Fatalf("unexpected numbered map: %#v", values)
++	}
++}
++
++func TestParseRejectsUnknownOrderEntry(t *testing.T) {
++	_, err := Parse(parameters.ParamValues{
++		{Name: "sql", Value: "SELECT ?"},
++		{Name: "params_json", Value: `{}`},
++		{Name: "param_order", Value: []any{"missing"}},
++		{Name: "binding", Value: BindingPositional},
++	})
++	if err == nil {
++		t.Fatal("Parse() unexpectedly accepted an unknown parameter")
++	}
++}

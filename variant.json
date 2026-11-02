@@ -1,0 +1,9 @@
+{
+  "prebuilts": [
+    "postgres",
+    "alloydb-omni",
+    "alloydb-postgres",
+    "cloud-sql-postgres"
+  ],
+  "display_name": "PostgreSQL"
+}

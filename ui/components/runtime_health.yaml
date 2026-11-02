@@ -1,0 +1,4 @@
+component_id: toolbox_dataset_connector_runtime_health
+type: health_panel
+title: Runtime health
+query_id: runtime_health

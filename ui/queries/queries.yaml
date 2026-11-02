@@ -1,0 +1,22 @@
+queries:
+  - query_id: runtime_health
+    title: Runtime health
+    description: Checks PostgreSQL extension health.
+    cursor_mode: none
+    required_scopes: [extension:invoke]
+    handler: {mode: extension}
+    result_fields: [result.status, result.extension_id]
+    error_codes: [unknown_query, connector_runtime_failed]
+  - query_id: supported_connectors
+    title: Connection profiles
+    description: Lists connector types that are tested and available in this extension.
+    cursor_mode: none
+    required_scopes: [extension:invoke]
+    handler: {mode: extension}
+    result_fields:
+      - result.connectors[].connector_type_id
+      - result.connectors[].display_name
+      - result.connectors[].database_kind
+      - result.connectors[].source_provider
+      - result.connectors[].access_mode
+    error_codes: [unknown_query, connector_runtime_failed]

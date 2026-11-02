@@ -1,0 +1,25 @@
+{
+  "binaries": {
+    "linux-amd64": {
+      "path": "bin/linux-amd64/toolbox",
+      "sha256": "728aba99eac1c0995124a440b12ad64b3f9ba216ef1902b2ed9f516ff0e99534",
+      "size": 34693246
+    },
+    "linux-arm64": {
+      "path": "bin/linux-arm64/toolbox",
+      "sha256": "49439657744265f8dc72d4ff2a03a7a3bb895309fba5b39022c22f0dd8a8dac5",
+      "size": 32505982
+    }
+  },
+  "go_image": "golang:1.26.2-bookworm@sha256:47ce5636e9936b2c5cbf708925578ef386b4f8872aec74a67bd13a627d242b19",
+  "patch_sha256": "44ea573fdf39a15a5011b76b8d8a568d8c631d6ec3ad44078607af55d5e34c58",
+  "registered_prebuilts": [
+    "alloydb-omni",
+    "alloydb-postgres",
+    "cloud-sql-postgres",
+    "postgres"
+  ],
+  "source": "https://github.com/googleapis/mcp-toolbox",
+  "upstream_commit": "b0010060a939455d91e4f8ba62dc3e72b1892469",
+  "upstream_tag": "v1.3.0"
+}
