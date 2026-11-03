@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- Use the original official provider artwork in the catalog and extension icon. Runtime behavior is unchanged.
+
 ## 1.4.0
 
 - Adds pgvector collections, document/chunk lifecycle and similarity search to existing direct PostgreSQL project connections.
