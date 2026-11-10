@@ -1,0 +1,317 @@
+{
+  "upstream_from": "06ea49d9a487a72c22419b5a8d5c22c11f0d7485",
+  "profiles_from": "b0010060a939455d91e4f8ba62dc3e72b1892469",
+  "patch_sha256": "df264c60006ad1a01812b427fb6a9593115ddd86227fc9522b8bae6731616aca",
+  "patch_bytes": 25864,
+  "changed_paths": [
+    "internal/prebuiltconfigs/tools/alloydb-omni.yaml",
+    "internal/prebuiltconfigs/tools/alloydb-postgres.yaml",
+    "internal/prebuiltconfigs/tools/cloud-sql-mssql.yaml",
+    "internal/prebuiltconfigs/tools/cloud-sql-mysql.yaml",
+    "internal/prebuiltconfigs/tools/cloud-sql-postgres.yaml",
+    "internal/prebuiltconfigs/tools/mssql.yaml",
+    "internal/prebuiltconfigs/tools/mysql.yaml",
+    "internal/prebuiltconfigs/tools/postgres.yaml",
+    "internal/prebuiltconfigs/tools/spanner-postgres.yaml",
+    "internal/prebuiltconfigs/tools/spanner.yaml"
+  ],
+  "profiles": [
+    {
+      "profile": "alloydb-omni",
+      "path": "internal/prebuiltconfigs/tools/alloydb-omni.yaml",
+      "sha256": "7547ec5d9234d950c5e7e0f3d499e9971aa5646a5f22b3d704711e4eb203b730",
+      "types": [
+        "postgres",
+        "postgres-database-overview",
+        "postgres-execute-sql",
+        "postgres-get-column-cardinality",
+        "postgres-list-active-queries",
+        "postgres-list-available-extensions",
+        "postgres-list-database-stats",
+        "postgres-list-indexes",
+        "postgres-list-installed-extensions",
+        "postgres-list-locks",
+        "postgres-list-pg-settings",
+        "postgres-list-publication-tables",
+        "postgres-list-query-stats",
+        "postgres-list-roles",
+        "postgres-list-schemas",
+        "postgres-list-sequences",
+        "postgres-list-stored-procedure",
+        "postgres-list-table-stats",
+        "postgres-list-tables",
+        "postgres-list-tablespaces",
+        "postgres-list-triggers",
+        "postgres-list-views",
+        "postgres-long-running-transactions",
+        "postgres-replication-stats",
+        "postgres-sql"
+      ]
+    },
+    {
+      "profile": "alloydb-postgres",
+      "path": "internal/prebuiltconfigs/tools/alloydb-postgres.yaml",
+      "sha256": "0479c90908bb7c936a5293a44f22be0dbf804db1bdc3f37094a9994dea61afde",
+      "types": [
+        "alloydb-admin",
+        "alloydb-create-cluster",
+        "alloydb-create-instance",
+        "alloydb-create-user",
+        "alloydb-get-cluster",
+        "alloydb-get-instance",
+        "alloydb-get-user",
+        "alloydb-list-clusters",
+        "alloydb-list-instances",
+        "alloydb-list-users",
+        "alloydb-postgres",
+        "alloydb-wait-for-operation",
+        "cloud-monitoring",
+        "cloud-monitoring-query-prometheus",
+        "postgres-database-overview",
+        "postgres-execute-sql",
+        "postgres-get-column-cardinality",
+        "postgres-list-active-queries",
+        "postgres-list-available-extensions",
+        "postgres-list-database-stats",
+        "postgres-list-indexes",
+        "postgres-list-installed-extensions",
+        "postgres-list-locks",
+        "postgres-list-pg-settings",
+        "postgres-list-publication-tables",
+        "postgres-list-query-stats",
+        "postgres-list-roles",
+        "postgres-list-schemas",
+        "postgres-list-sequences",
+        "postgres-list-stored-procedure",
+        "postgres-list-table-stats",
+        "postgres-list-tables",
+        "postgres-list-tablespaces",
+        "postgres-list-triggers",
+        "postgres-list-views",
+        "postgres-long-running-transactions",
+        "postgres-replication-stats",
+        "postgres-sql"
+      ]
+    },
+    {
+      "profile": "clickhouse",
+      "path": "internal/prebuiltconfigs/tools/clickhouse.yaml",
+      "sha256": "4f9ee2a3e5b8c571375c2d426bf948769670a5d07141190aa80d375dfc43ebcf",
+      "types": [
+        "clickhouse",
+        "clickhouse-execute-sql",
+        "clickhouse-list-databases",
+        "clickhouse-list-tables"
+      ]
+    },
+    {
+      "profile": "cloud-sql-mssql",
+      "path": "internal/prebuiltconfigs/tools/cloud-sql-mssql.yaml",
+      "sha256": "cfe6ee32e3b985ae730a22e49b545ec4aa0da70cd4b3f015d3fc068c49006115",
+      "types": [
+        "cloud-monitoring",
+        "cloud-monitoring-query-prometheus",
+        "cloud-sql-admin",
+        "cloud-sql-clone-instance",
+        "cloud-sql-create-backup",
+        "cloud-sql-create-database",
+        "cloud-sql-create-users",
+        "cloud-sql-get-instance",
+        "cloud-sql-list-databases",
+        "cloud-sql-list-instances",
+        "cloud-sql-mssql",
+        "cloud-sql-mssql-create-instance",
+        "cloud-sql-restore-backup",
+        "cloud-sql-wait-for-operation",
+        "mssql-execute-sql",
+        "mssql-list-tables"
+      ]
+    },
+    {
+      "profile": "cloud-sql-mysql",
+      "path": "internal/prebuiltconfigs/tools/cloud-sql-mysql.yaml",
+      "sha256": "b1c721334e095320d39ca8206f0ee19911a9e75488d9afa39a24b0cc848f336a",
+      "types": [
+        "cloud-monitoring",
+        "cloud-monitoring-query-prometheus",
+        "cloud-sql-admin",
+        "cloud-sql-clone-instance",
+        "cloud-sql-create-backup",
+        "cloud-sql-create-database",
+        "cloud-sql-create-users",
+        "cloud-sql-get-instance",
+        "cloud-sql-list-databases",
+        "cloud-sql-list-instances",
+        "cloud-sql-mysql",
+        "cloud-sql-mysql-create-instance",
+        "cloud-sql-restore-backup",
+        "cloud-sql-wait-for-operation",
+        "mysql-execute-sql",
+        "mysql-get-query-plan",
+        "mysql-list-active-queries",
+        "mysql-list-table-fragmentation",
+        "mysql-list-table-stats",
+        "mysql-list-tables",
+        "mysql-list-tables-missing-unique-indexes"
+      ]
+    },
+    {
+      "profile": "cloud-sql-postgres",
+      "path": "internal/prebuiltconfigs/tools/cloud-sql-postgres.yaml",
+      "sha256": "c721a0292cdcd94a40c91093088346a942501a8eb201afc3720abbb8e2e807bd",
+      "types": [
+        "cloud-monitoring",
+        "cloud-monitoring-query-prometheus",
+        "cloud-sql-admin",
+        "cloud-sql-clone-instance",
+        "cloud-sql-create-backup",
+        "cloud-sql-create-database",
+        "cloud-sql-create-users",
+        "cloud-sql-get-instance",
+        "cloud-sql-list-databases",
+        "cloud-sql-list-instances",
+        "cloud-sql-postgres",
+        "cloud-sql-postgres-create-instance",
+        "cloud-sql-restore-backup",
+        "cloud-sql-wait-for-operation",
+        "postgres-database-overview",
+        "postgres-execute-sql",
+        "postgres-get-column-cardinality",
+        "postgres-list-active-queries",
+        "postgres-list-available-extensions",
+        "postgres-list-database-stats",
+        "postgres-list-indexes",
+        "postgres-list-installed-extensions",
+        "postgres-list-locks",
+        "postgres-list-pg-settings",
+        "postgres-list-publication-tables",
+        "postgres-list-query-stats",
+        "postgres-list-roles",
+        "postgres-list-schemas",
+        "postgres-list-sequences",
+        "postgres-list-stored-procedure",
+        "postgres-list-table-stats",
+        "postgres-list-tables",
+        "postgres-list-tablespaces",
+        "postgres-list-triggers",
+        "postgres-list-views",
+        "postgres-long-running-transactions",
+        "postgres-replication-stats",
+        "postgres-sql",
+        "postgres-upgrade-precheck",
+        "vector-assist-apply-spec",
+        "vector-assist-define-spec",
+        "vector-assist-generate-query",
+        "vector-assist-modify-spec"
+      ]
+    },
+    {
+      "profile": "mssql",
+      "path": "internal/prebuiltconfigs/tools/mssql.yaml",
+      "sha256": "26a33533c1d747b3a948213a17b1d129f9b9d535bc0f578e2a0f66f88548d4f5",
+      "types": [
+        "mssql",
+        "mssql-execute-sql",
+        "mssql-list-tables"
+      ]
+    },
+    {
+      "profile": "mysql",
+      "path": "internal/prebuiltconfigs/tools/mysql.yaml",
+      "sha256": "74f3f021937f67ecdb8360214433d9fea1d4f31510772d1c242bf6fb88aea028",
+      "types": [
+        "mysql",
+        "mysql-execute-sql",
+        "mysql-get-query-plan",
+        "mysql-list-active-queries",
+        "mysql-list-table-fragmentation",
+        "mysql-list-table-stats",
+        "mysql-list-tables",
+        "mysql-list-tables-missing-unique-indexes"
+      ]
+    },
+    {
+      "profile": "oceanbase",
+      "path": "internal/prebuiltconfigs/tools/oceanbase.yaml",
+      "sha256": "86a202a8ce3602822b9d5411be012720c98090fd8bd7eb17058cd6c8208c82a7",
+      "types": [
+        "oceanbase",
+        "oceanbase-execute-sql",
+        "oceanbase-sql"
+      ]
+    },
+    {
+      "profile": "postgres",
+      "path": "internal/prebuiltconfigs/tools/postgres.yaml",
+      "sha256": "f47951e34e0768a936380f929dc7db0f1b6d278c9a49a643ea4cb77767a3e780",
+      "types": [
+        "postgres",
+        "postgres-database-overview",
+        "postgres-execute-sql",
+        "postgres-get-column-cardinality",
+        "postgres-list-active-queries",
+        "postgres-list-available-extensions",
+        "postgres-list-database-stats",
+        "postgres-list-indexes",
+        "postgres-list-installed-extensions",
+        "postgres-list-locks",
+        "postgres-list-pg-settings",
+        "postgres-list-publication-tables",
+        "postgres-list-query-stats",
+        "postgres-list-roles",
+        "postgres-list-schemas",
+        "postgres-list-sequences",
+        "postgres-list-stored-procedure",
+        "postgres-list-table-stats",
+        "postgres-list-tables",
+        "postgres-list-tablespaces",
+        "postgres-list-triggers",
+        "postgres-list-views",
+        "postgres-long-running-transactions",
+        "postgres-replication-stats",
+        "postgres-sql"
+      ]
+    },
+    {
+      "profile": "singlestore",
+      "path": "internal/prebuiltconfigs/tools/singlestore.yaml",
+      "sha256": "be1fc109c28d5faf70a24a7e9f6ba03b7f7b743cf7121f403137e6e8fef7521b",
+      "types": [
+        "singlestore",
+        "singlestore-execute-sql",
+        "singlestore-sql"
+      ]
+    },
+    {
+      "profile": "snowflake",
+      "path": "internal/prebuiltconfigs/tools/snowflake.yaml",
+      "sha256": "ef7c5aa9f67acd559cde31c37bb9543cf1614225e7afa89fd6b213993149c414",
+      "types": [
+        "snowflake",
+        "snowflake-execute-sql",
+        "snowflake-sql"
+      ]
+    },
+    {
+      "profile": "spanner",
+      "path": "internal/prebuiltconfigs/tools/spanner.yaml",
+      "sha256": "444b59a56760a3e2089b2bde1e161aef966ae56ffec46d2f357909a8b1d80f2b",
+      "types": [
+        "spanner",
+        "spanner-execute-sql",
+        "spanner-list-graphs",
+        "spanner-list-tables"
+      ]
+    },
+    {
+      "profile": "spanner-postgres",
+      "path": "internal/prebuiltconfigs/tools/spanner-postgres.yaml",
+      "sha256": "bc80cff9be67c972346d834d5b812ab8cfe2a1775ac22e10fbfde659809b5156",
+      "types": [
+        "spanner",
+        "spanner-execute-sql",
+        "spanner-sql"
+      ]
+    }
+  ]
+}

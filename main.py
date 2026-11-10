@@ -330,7 +330,7 @@ def _invoke_toolbox(
 ) -> Any:
     _validate_connection_credentials(config, secret_refs)
     prebuilt = _runtime_prebuilt(config)
-    command = [*_toolbox_command(config), f"--prebuilt={prebuilt}", "--stdio"]
+    command = [*_toolbox_command(config), f"--prebuilt={prebuilt}", "--stdio", "--disable-version-check"]
     process = subprocess.Popen(  # nosemgrep: fixed packaged argv, never shell=True. # nosec B603
         command,
         stdin=subprocess.PIPE,
@@ -351,7 +351,7 @@ def _invoke_toolbox(
                 "params": {
                     "protocolVersion": "2025-06-18",
                     "capabilities": {},
-                    "clientInfo": {"name": EXTENSION_ID, "version": "1.4.1"},
+                    "clientInfo": {"name": EXTENSION_ID, "version": "1.4.3"},
                 },
             },
         )

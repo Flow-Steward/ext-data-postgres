@@ -11,7 +11,7 @@ def test_standalone_database_contract():
     manifest = yaml.safe_load((ROOT / "extension.yaml").read_text())
     variant = json.loads((ROOT / "variant.json").read_text())
     profiles = set(variant["prebuilts"])
-    assert manifest["version"] == "1.4.2"
+    assert manifest["version"] == "1.4.3"
     assert manifest["display_name"] == variant["display_name"]
     contract = manifest["runtime"]["extension_contract_v2"]
     assert len(contract["dataset_connectors"]) == 1

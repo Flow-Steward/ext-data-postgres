@@ -1,0 +1,11 @@
+{
+  "toolbox_tag": "v1.16.0",
+  "toolbox_commit": "06ea49d9a487a72c22419b5a8d5c22c11f0d7485",
+  "go_version": "go1.27.3",
+  "go_image": "golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0",
+  "go.mod": "1c59a76307271df0a6992d9db406f9c49ba670dfb898e029bbc86136adcc9294",
+  "go.sum": "d0e98fac8a9d4677bc239a668b472dd2f459ab65f3d0fec7ceb2a50bb6138841",
+  "module_patch_sha256": "af406af0a861bea0b8e3d83e55fbdef9173cc01762788c6d06cc9b47eaa558e1",
+  "profile_patch_sha256": "df264c60006ad1a01812b427fb6a9593115ddd86227fc9522b8bae6731616aca",
+  "revision": 2
+}

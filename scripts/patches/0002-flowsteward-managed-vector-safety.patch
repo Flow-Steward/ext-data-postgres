@@ -1,7 +1,96 @@
+diff --git a/internal/sources/postgres/flowsteward_test.go b/internal/sources/postgres/flowsteward_test.go
+new file mode 100644
+index 0000000000..5c3115d635
+--- /dev/null
++++ b/internal/sources/postgres/flowsteward_test.go
+@@ -0,0 +1,82 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++
++package postgres
++
++import (
++	"bytes"
++	"context"
++	"encoding/binary"
++	"io"
++	"testing"
++	"time"
++
++	"go.opentelemetry.io/otel/trace/noop"
++)
++
++func TestFlowStewardOrdinarySourceKeepsItsPoolConfiguration(t *testing.T) {
++	tracer := noop.NewTracerProvider().Tracer("test")
++	pool, err := initPostgresConnectionPool(context.Background(), tracer, "legacy", "db.example", "5432", "u", "p", "db", map[string]string{"sslmode": "disable"}, "", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer pool.Close()
++	if pool.Config().MaxConns == 1 {
++		t.Fatal("vector pool limits leaked into ordinary SQL")
++	}
++}
++
++func TestFlowStewardManagedVectorEndpointAndWireLimits(t *testing.T) {
++	tracer := noop.NewTracerProvider().Tracer("test")
++	for _, params := range []map[string]string{
++		{"fs_vector_mode": "true", "sslmode": "verify-full"},
++		{"fs_vector_mode": "true", "fs_pinned_ips": "127.0.0.1", "sslmode": "disable"},
++		{"fs_vector_mode": "true", "fs_pinned_ips": "8.8.8.8", "sslmode": "disable"},
++		{"fs_vector_mode": "true", "fs_pinned_ips": "invalid", "sslmode": "verify-full"},
++	} {
++		pool, err := initPostgresConnectionPool(context.Background(), tracer, "test", "db.example", "5432", "u", "p", "db", params, "", nil)
++		if pool != nil {
++			pool.Close()
++		}
++		if err == nil {
++			t.Fatal("unsafe vector endpoint accepted")
++		}
++	}
++	params := map[string]string{"fs_vector_mode": "true", "fs_pinned_ips": "8.8.8.8", "sslmode": "verify-full"}
++	pool, err := initPostgresConnectionPool(context.Background(), tracer, "test", "db.example", "5432", "u", "p", "db", params, "", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer pool.Close()
++	cfg := pool.Config()
++	if len(cfg.ConnConfig.Fallbacks) != 0 || cfg.MaxConns != 1 || cfg.ConnConfig.ConnectTimeout != 5*time.Second {
++		t.Fatal("unsafe fallback or pool configuration")
++	}
++	if cfg.ConnConfig.TLSConfig == nil || cfg.ConnConfig.TLSConfig.InsecureSkipVerify || cfg.ConnConfig.TLSConfig.ServerName != "db.example" {
++		t.Fatal("TLS hostname verification was lost")
++	}
++	if _, err := cfg.ConnConfig.DialFunc(context.Background(), "tcp", "other.example:5432"); err == nil {
++		t.Fatal("unexpected endpoint accepted")
++	}
++	frame := make([]byte, 5)
++	frame[0] = 'D'
++	binary.BigEndian.PutUint32(frame[1:], 3*1024*1024)
++	frontend := cfg.ConnConfig.BuildFrontend(bytes.NewReader(frame), io.Discard)
++	_, err = frontend.Receive()
++	if err == nil || err == io.EOF || err == io.ErrUnexpectedEOF {
++		t.Fatalf("large frame was not rejected before reading body: %v", err)
++	}
++}
++
++func TestFlowStewardManagedVectorTimeoutCannotBeOverridden(t *testing.T) {
++	tracer := noop.NewTracerProvider().Tracer("test")
++	timeout := 30
++	pool, err := initPostgresConnectionPool(context.Background(), tracer, "test", "db.example", "5432", "u", "p", "db", map[string]string{"fs_vector_mode": "true", "fs_pinned_ips": "8.8.8.8", "sslmode": "verify-full"}, "", &timeout)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer pool.Close()
++	if pool.Config().ConnConfig.ConnectTimeout != 5*time.Second {
++		t.Fatal("managed vector timeout overridden")
++	}
++}
 diff --git a/internal/sources/postgres/postgres.go b/internal/sources/postgres/postgres.go
+index b23d086fb7..a05988d5ff 100644
 --- a/internal/sources/postgres/postgres.go
 +++ b/internal/sources/postgres/postgres.go
-@@ -16,9 +16,14 @@
+@@ -16,9 +16,13 @@ package postgres
  
  import (
  	"context"
@@ -12,19 +101,18 @@ diff --git a/internal/sources/postgres/postgres.go b/internal/sources/postgres/p
  	"net"
  	"net/url"
 +	"strings"
-+	"time"
+ 	"time"
  
  	"github.com/goccy/go-yaml"
- 	"github.com/googleapis/mcp-toolbox/internal/sources"
-@@ -66,6 +71,7 @@
+@@ -72,6 +76,7 @@ func (r Config) SourceConfigType() string {
  }
  
  func (r Config) Initialize(ctx context.Context, tracer trace.Tracer) (sources.Source, error) {
 +	managedVector := r.QueryParams["fs_vector_mode"] == "true"
- 	pool, err := initPostgresConnectionPool(ctx, tracer, r.Name, r.Host, r.Port, r.User, r.Password, r.Database, r.QueryParams, r.QueryExecMode)
+ 	pool, err := initPostgresConnectionPool(ctx, tracer, r.Name, r.Host, r.Port, r.User, r.Password, r.Database, r.QueryParams, r.QueryExecMode, r.ConnectTimeout)
  	if err != nil {
  		return nil, fmt.Errorf("unable to create pool: %w", err)
-@@ -77,8 +83,9 @@
+@@ -84,8 +89,9 @@ func (r Config) Initialize(ctx context.Context, tracer trace.Tracer) (sources.So
  	}
  
  	s := &Source{
@@ -36,7 +124,7 @@ diff --git a/internal/sources/postgres/postgres.go b/internal/sources/postgres/p
  	}
  	return s, nil
  }
-@@ -87,7 +94,8 @@
+@@ -94,7 +100,8 @@ var _ sources.Source = &Source{}
  
  type Source struct {
  	Config
@@ -45,8 +133,8 @@ diff --git a/internal/sources/postgres/postgres.go b/internal/sources/postgres/p
 +	managedVector bool
  }
  
- func (s *Source) SourceType() string {
-@@ -112,7 +120,11 @@
+ func (s *Source) IsReadOnly() bool {
+@@ -123,7 +130,11 @@ func (s *Source) RunSQL(ctx context.Context, statement string, params []any) (an
  
  	fields := results.FieldDescriptions()
  	out := []any{}
@@ -58,11 +146,10 @@ diff --git a/internal/sources/postgres/postgres.go b/internal/sources/postgres/p
  		values, err := results.Values()
  		if err != nil {
  			return nil, fmt.Errorf("unable to parse row: %w", err)
-@@ -120,6 +132,16 @@
- 		row := orderedmap.Row{}
- 		for i, f := range fields {
- 			row.Add(f.Name, values[i])
-+		}
+@@ -133,6 +144,16 @@ func (s *Source) RunSQL(ctx context.Context, statement string, params []any) (an
+ 			val := sources.NormalizeValue(values[i], f.DataTypeOID)
+ 			row.Add(f.Name, val)
+ 		}
 +		if s.managedVector {
 +			encoded, err := json.Marshal(row)
 +			if err != nil {
@@ -72,10 +159,11 @@ diff --git a/internal/sources/postgres/postgres.go b/internal/sources/postgres/p
 +			if resultBytes > 480*1024 {
 +				return nil, fmt.Errorf("exceeds result byte limit")
 +			}
- 		}
++		}
  		out = append(out, row)
  	}
-@@ -146,6 +168,31 @@
+ 	// this will catch actual query execution errors
+@@ -158,6 +179,31 @@ func initPostgresConnectionPool(ctx context.Context, tracer trace.Tracer, name,
  		queryParams["application_name"] = userAgent
  	}
  
@@ -107,10 +195,10 @@ diff --git a/internal/sources/postgres/postgres.go b/internal/sources/postgres/p
  	config, err := pgxpool.ParseConfig(BuildPostgresURL(host, port, user, pass, dbname, queryParams))
  	if err != nil {
  		return nil, fmt.Errorf("unable to parse connection uri: %w", err)
-@@ -156,6 +203,25 @@
- 		return nil, err
+@@ -173,6 +219,26 @@ func initPostgresConnectionPool(ctx context.Context, tracer trace.Tracer, name,
+ 		config.ConnConfig.ConnectTimeout = time.Duration(*connectTimeout) * time.Second
  	}
- 	config.ConnConfig.DefaultQueryExecMode = execMode
+ 
 +	if managedVector {
 +		config.MaxConns = 1
 +		config.MinConns = 0
@@ -130,80 +218,7 @@ diff --git a/internal/sources/postgres/postgres.go b/internal/sources/postgres/p
 +			return frontend
 +		}
 +	}
- 
++
  	pool, err := pgxpool.NewWithConfig(ctx, config)
  	if err != nil {
-diff --git a/internal/sources/postgres/flowsteward_test.go b/internal/sources/postgres/flowsteward_test.go
-new file mode 100644
---- /dev/null
-+++ b/internal/sources/postgres/flowsteward_test.go
-@@ -0,0 +1,69 @@
-+// Copyright 2026 Flow Steward
-+// Licensed under the Apache License, Version 2.0.
-+
-+package postgres
-+
-+import (
-+	"bytes"
-+	"context"
-+	"encoding/binary"
-+	"io"
-+	"testing"
-+	"time"
-+
-+	"go.opentelemetry.io/otel/trace/noop"
-+)
-+
-+func TestFlowStewardOrdinarySourceKeepsItsPoolConfiguration(t *testing.T) {
-+	tracer := noop.NewTracerProvider().Tracer("test")
-+	pool, err := initPostgresConnectionPool(context.Background(), tracer, "legacy", "db.example", "5432", "u", "p", "db", map[string]string{"sslmode": "disable"}, "")
-+	if err != nil {
-+		t.Fatal(err)
-+	}
-+	defer pool.Close()
-+	if pool.Config().MaxConns == 1 {
-+		t.Fatal("vector pool limits leaked into ordinary SQL")
-+	}
-+}
-+
-+func TestFlowStewardManagedVectorEndpointAndWireLimits(t *testing.T) {
-+	tracer := noop.NewTracerProvider().Tracer("test")
-+	for _, params := range []map[string]string{
-+		{"fs_vector_mode": "true", "sslmode": "verify-full"},
-+		{"fs_vector_mode": "true", "fs_pinned_ips": "127.0.0.1", "sslmode": "disable"},
-+		{"fs_vector_mode": "true", "fs_pinned_ips": "8.8.8.8", "sslmode": "disable"},
-+		{"fs_vector_mode": "true", "fs_pinned_ips": "invalid", "sslmode": "verify-full"},
-+	} {
-+		pool, err := initPostgresConnectionPool(context.Background(), tracer, "test", "db.example", "5432", "u", "p", "db", params, "")
-+		if pool != nil {
-+			pool.Close()
-+		}
-+		if err == nil {
-+			t.Fatal("unsafe vector endpoint accepted")
-+		}
-+	}
-+	params := map[string]string{"fs_vector_mode": "true", "fs_pinned_ips": "8.8.8.8", "sslmode": "verify-full"}
-+	pool, err := initPostgresConnectionPool(context.Background(), tracer, "test", "db.example", "5432", "u", "p", "db", params, "")
-+	if err != nil {
-+		t.Fatal(err)
-+	}
-+	defer pool.Close()
-+	cfg := pool.Config()
-+	if len(cfg.ConnConfig.Fallbacks) != 0 || cfg.MaxConns != 1 || cfg.ConnConfig.ConnectTimeout != 5*time.Second {
-+		t.Fatal("unsafe fallback or pool configuration")
-+	}
-+	if cfg.ConnConfig.TLSConfig == nil || cfg.ConnConfig.TLSConfig.InsecureSkipVerify || cfg.ConnConfig.TLSConfig.ServerName != "db.example" {
-+		t.Fatal("TLS hostname verification was lost")
-+	}
-+	if _, err := cfg.ConnConfig.DialFunc(context.Background(), "tcp", "other.example:5432"); err == nil {
-+		t.Fatal("unexpected endpoint accepted")
-+	}
-+	frame := make([]byte, 5)
-+	frame[0] = 'D'
-+	binary.BigEndian.PutUint32(frame[1:], 3*1024*1024)
-+	frontend := cfg.ConnConfig.BuildFrontend(bytes.NewReader(frame), io.Discard)
-+	_, err = frontend.Receive()
-+	if err == nil || err == io.EOF || err == io.ErrUnexpectedEOF {
-+		t.Fatalf("large frame was not rejected before reading body: %v", err)
-+	}
-+}
+ 		return nil, fmt.Errorf("unable to create connection pool: %w", err)

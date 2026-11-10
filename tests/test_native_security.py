@@ -24,14 +24,14 @@ def test_native_binary_security_floor(target):
 
 @pytest.mark.parametrize("version", ["v0.57.0", "v0.58.1-0.20261008181718-2f1f834330b2"])
 def test_dependency_downgrades_are_rejected(version):
-    record = {"go_version": "go1.26.10", "modules": {"golang.org/x/crypto": version}, "module_gaps": []}
+    record = {"go_version": "go1.27.3", "modules": {"golang.org/x/crypto": version}, "module_gaps": []}
     baseline = json.loads((ROOT / "scripts/native-security-baseline.json").read_text())
     with pytest.raises(ValueError, match="module below security floor"):
         native_security.check_floors(record, baseline)
 
 
 def test_local_replacement_cannot_hide_a_dependency():
-    record = {"go_version": "go1.26.10", "modules": {}, "module_gaps": ["unversioned replacement"]}
+    record = {"go_version": "go1.27.3", "modules": {}, "module_gaps": ["unversioned replacement"]}
     baseline = json.loads((ROOT / "scripts/native-security-baseline.json").read_text())
     with pytest.raises(ValueError, match="unversioned native dependencies"):
         native_security.check_floors(record, baseline)
@@ -54,7 +54,7 @@ def test_replacement_cannot_bypass_original_dependency_floor(tmp_path, path, ver
     import struct
     text = "dep\tgolang.org/x/net\tv0.61.0\th1:old\n=>\t" + path + "\t" + version + "\th1:replacement\n"
     framed = native_security.START + text.encode() + native_security.END
-    compiler = b"go1.26.10"
+    compiler = b"go1.27.3"
     blob = native_security.MAGIC + bytes([8, 2]) + bytes(16)
     blob += bytes([len(compiler)]) + compiler + bytes([len(framed)]) + framed
     payload = bytearray(256)

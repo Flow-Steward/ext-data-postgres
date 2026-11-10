@@ -1,7 +1,722 @@
+diff --git a/internal/sources/clickhouse/clickhouse.go b/internal/sources/clickhouse/clickhouse.go
+index 26d0f3f7a9..63646962e5 100644
+--- a/internal/sources/clickhouse/clickhouse.go
++++ b/internal/sources/clickhouse/clickhouse.go
+@@ -214,3 +214,21 @@ func initClickHouseConnectionPool(ctx context.Context, tracer trace.Tracer, name
+ 
+ 	return pool, nil
+ }
++
++// RunWrite executes DML once with driver-bound values and never retries the action.
++func (s *Source) RunWrite(ctx context.Context, statement string, params []any) (any, error) {
++	conn, err := s.ClickHousePool().Conn(ctx)
++	if err != nil {
++		return nil, err
++	}
++	defer conn.Close()
++	result, err := conn.ExecContext(ctx, statement, params...)
++	if err != nil {
++		return nil, err
++	}
++	affected, err := result.RowsAffected()
++	if err != nil {
++		return []any{}, nil
++	}
++	return []any{map[string]any{"affected_rows": affected}}, nil
++}
+diff --git a/internal/sources/clickhouse/flowsteward_write_test.go b/internal/sources/clickhouse/flowsteward_write_test.go
+new file mode 100644
+index 0000000000..97533686cc
+--- /dev/null
++++ b/internal/sources/clickhouse/flowsteward_write_test.go
+@@ -0,0 +1,54 @@
++// Copyright 2026 Flow Steward. Licensed under Apache-2.0.
++package clickhouse
++
++import (
++	"context"
++	"database/sql"
++	"database/sql/driver"
++	"fmt"
++	"testing"
++)
++
++type fsWriteDriver struct{}
++type fsWriteConn struct{}
++
++var fsCalls int
++var fsSQL string
++var fsArgs []driver.NamedValue
++var fsFail bool
++
++func (fsWriteDriver) Open(string) (driver.Conn, error)  { return fsWriteConn{}, nil }
++func (fsWriteConn) Prepare(string) (driver.Stmt, error) { return nil, fmt.Errorf("unexpected prepare") }
++func (fsWriteConn) Close() error                        { return nil }
++func (fsWriteConn) Begin() (driver.Tx, error)           { return nil, fmt.Errorf("unexpected transaction") }
++func (fsWriteConn) ExecContext(_ context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
++	fsCalls++
++	fsSQL = query
++	fsArgs = args
++	if fsFail {
++		return nil, driver.ErrBadConn
++	}
++	return driver.RowsAffected(1), nil
++}
++func init() { sql.Register("flowsteward-write-clickhouse", fsWriteDriver{}) }
++func TestFlowStewardBoundWrite(t *testing.T) {
++	db, err := sql.Open("flowsteward-write-clickhouse", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer db.Close()
++	source := Source{Pool: db}
++	for _, fail := range []bool{false, true} {
++		fsCalls = 0
++		fsFail = fail
++		query := "UPDATE products SET name = ? WHERE id = ?"
++		value := "x'; DELETE FROM products --"
++		_, err := source.RunWrite(context.Background(), query, []any{value, int64(5)})
++		if (err != nil) != fail {
++			t.Fatalf("error=%v fail=%v", err, fail)
++		}
++		if fsCalls != 1 || fsSQL != query || len(fsArgs) != 2 || fsArgs[0].Value != value || fsArgs[1].Value != int64(5) {
++			t.Fatalf("write lost binding or retried: %d %q %#v", fsCalls, fsSQL, fsArgs)
++		}
++	}
++}
+diff --git a/internal/sources/oceanbase/flowsteward_write_test.go b/internal/sources/oceanbase/flowsteward_write_test.go
+new file mode 100644
+index 0000000000..0a0a646dc5
+--- /dev/null
++++ b/internal/sources/oceanbase/flowsteward_write_test.go
+@@ -0,0 +1,54 @@
++// Copyright 2026 Flow Steward. Licensed under Apache-2.0.
++package oceanbase
++
++import (
++	"context"
++	"database/sql"
++	"database/sql/driver"
++	"fmt"
++	"testing"
++)
++
++type fsWriteDriver struct{}
++type fsWriteConn struct{}
++
++var fsCalls int
++var fsSQL string
++var fsArgs []driver.NamedValue
++var fsFail bool
++
++func (fsWriteDriver) Open(string) (driver.Conn, error)  { return fsWriteConn{}, nil }
++func (fsWriteConn) Prepare(string) (driver.Stmt, error) { return nil, fmt.Errorf("unexpected prepare") }
++func (fsWriteConn) Close() error                        { return nil }
++func (fsWriteConn) Begin() (driver.Tx, error)           { return nil, fmt.Errorf("unexpected transaction") }
++func (fsWriteConn) ExecContext(_ context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
++	fsCalls++
++	fsSQL = query
++	fsArgs = args
++	if fsFail {
++		return nil, driver.ErrBadConn
++	}
++	return driver.RowsAffected(1), nil
++}
++func init() { sql.Register("flowsteward-write-oceanbase", fsWriteDriver{}) }
++func TestFlowStewardBoundWrite(t *testing.T) {
++	db, err := sql.Open("flowsteward-write-oceanbase", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer db.Close()
++	source := Source{Pool: db}
++	for _, fail := range []bool{false, true} {
++		fsCalls = 0
++		fsFail = fail
++		query := "UPDATE products SET name = ? WHERE id = ?"
++		value := "x'; DELETE FROM products --"
++		_, err := source.RunWrite(context.Background(), query, []any{value, int64(5)})
++		if (err != nil) != fail {
++			t.Fatalf("error=%v fail=%v", err, fail)
++		}
++		if fsCalls != 1 || fsSQL != query || len(fsArgs) != 2 || fsArgs[0].Value != value || fsArgs[1].Value != int64(5) {
++			t.Fatalf("write lost binding or retried: %d %q %#v", fsCalls, fsSQL, fsArgs)
++		}
++	}
++}
+diff --git a/internal/sources/oceanbase/oceanbase.go b/internal/sources/oceanbase/oceanbase.go
+index ea96afaa27..d64a191244 100644
+--- a/internal/sources/oceanbase/oceanbase.go
++++ b/internal/sources/oceanbase/oceanbase.go
+@@ -177,3 +177,21 @@ func initOceanBaseConnectionPool(ctx context.Context, tracer trace.Tracer, name,
+ 	}
+ 	return pool, nil
+ }
++
++// RunWrite executes DML once with driver-bound values and never retries the action.
++func (s *Source) RunWrite(ctx context.Context, statement string, params []any) (any, error) {
++	conn, err := s.OceanBasePool().Conn(ctx)
++	if err != nil {
++		return nil, err
++	}
++	defer conn.Close()
++	result, err := conn.ExecContext(ctx, statement, params...)
++	if err != nil {
++		return nil, err
++	}
++	affected, err := result.RowsAffected()
++	if err != nil {
++		return []any{}, nil
++	}
++	return []any{map[string]any{"affected_rows": affected}}, nil
++}
+diff --git a/internal/sources/singlestore/flowsteward_write_test.go b/internal/sources/singlestore/flowsteward_write_test.go
+new file mode 100644
+index 0000000000..aa0776b46f
+--- /dev/null
++++ b/internal/sources/singlestore/flowsteward_write_test.go
+@@ -0,0 +1,54 @@
++// Copyright 2026 Flow Steward. Licensed under Apache-2.0.
++package singlestore
++
++import (
++	"context"
++	"database/sql"
++	"database/sql/driver"
++	"fmt"
++	"testing"
++)
++
++type fsWriteDriver struct{}
++type fsWriteConn struct{}
++
++var fsCalls int
++var fsSQL string
++var fsArgs []driver.NamedValue
++var fsFail bool
++
++func (fsWriteDriver) Open(string) (driver.Conn, error)  { return fsWriteConn{}, nil }
++func (fsWriteConn) Prepare(string) (driver.Stmt, error) { return nil, fmt.Errorf("unexpected prepare") }
++func (fsWriteConn) Close() error                        { return nil }
++func (fsWriteConn) Begin() (driver.Tx, error)           { return nil, fmt.Errorf("unexpected transaction") }
++func (fsWriteConn) ExecContext(_ context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
++	fsCalls++
++	fsSQL = query
++	fsArgs = args
++	if fsFail {
++		return nil, driver.ErrBadConn
++	}
++	return driver.RowsAffected(1), nil
++}
++func init() { sql.Register("flowsteward-write-singlestore", fsWriteDriver{}) }
++func TestFlowStewardBoundWrite(t *testing.T) {
++	db, err := sql.Open("flowsteward-write-singlestore", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer db.Close()
++	source := Source{Pool: db}
++	for _, fail := range []bool{false, true} {
++		fsCalls = 0
++		fsFail = fail
++		query := "UPDATE products SET name = ? WHERE id = ?"
++		value := "x'; DELETE FROM products --"
++		_, err := source.RunWrite(context.Background(), query, []any{value, int64(5)})
++		if (err != nil) != fail {
++			t.Fatalf("error=%v fail=%v", err, fail)
++		}
++		if fsCalls != 1 || fsSQL != query || len(fsArgs) != 2 || fsArgs[0].Value != value || fsArgs[1].Value != int64(5) {
++			t.Fatalf("write lost binding or retried: %d %q %#v", fsCalls, fsSQL, fsArgs)
++		}
++	}
++}
+diff --git a/internal/sources/singlestore/singlestore.go b/internal/sources/singlestore/singlestore.go
+index fd6f524f92..cfc9a86261 100644
+--- a/internal/sources/singlestore/singlestore.go
++++ b/internal/sources/singlestore/singlestore.go
+@@ -220,3 +220,21 @@ func initSingleStoreConnectionPool(ctx context.Context, tracer trace.Tracer, cfg
+ 	}
+ 	return pool, nil
+ }
++
++// RunWrite executes DML once with driver-bound values and never retries the action.
++func (s *Source) RunWrite(ctx context.Context, statement string, params []any) (any, error) {
++	conn, err := s.SingleStorePool().Conn(ctx)
++	if err != nil {
++		return nil, err
++	}
++	defer conn.Close()
++	result, err := conn.ExecContext(ctx, statement, params...)
++	if err != nil {
++		return nil, err
++	}
++	affected, err := result.RowsAffected()
++	if err != nil {
++		return []any{}, nil
++	}
++	return []any{map[string]any{"affected_rows": affected}}, nil
++}
+diff --git a/internal/sources/snowflake/flowsteward_write_test.go b/internal/sources/snowflake/flowsteward_write_test.go
+new file mode 100644
+index 0000000000..48ef510a1d
+--- /dev/null
++++ b/internal/sources/snowflake/flowsteward_write_test.go
+@@ -0,0 +1,55 @@
++// Copyright 2026 Flow Steward. Licensed under Apache-2.0.
++package snowflake
++
++import (
++	"context"
++	"database/sql"
++	"database/sql/driver"
++	"fmt"
++	"github.com/jmoiron/sqlx"
++	"testing"
++)
++
++type fsWriteDriver struct{}
++type fsWriteConn struct{}
++
++var fsCalls int
++var fsSQL string
++var fsArgs []driver.NamedValue
++var fsFail bool
++
++func (fsWriteDriver) Open(string) (driver.Conn, error)  { return fsWriteConn{}, nil }
++func (fsWriteConn) Prepare(string) (driver.Stmt, error) { return nil, fmt.Errorf("unexpected prepare") }
++func (fsWriteConn) Close() error                        { return nil }
++func (fsWriteConn) Begin() (driver.Tx, error)           { return nil, fmt.Errorf("unexpected transaction") }
++func (fsWriteConn) ExecContext(_ context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
++	fsCalls++
++	fsSQL = query
++	fsArgs = args
++	if fsFail {
++		return nil, driver.ErrBadConn
++	}
++	return driver.RowsAffected(1), nil
++}
++func init() { sql.Register("flowsteward-write-snowflake", fsWriteDriver{}) }
++func TestFlowStewardBoundWrite(t *testing.T) {
++	db, err := sql.Open("flowsteward-write-snowflake", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer db.Close()
++	source := Source{DB: sqlx.NewDb(db, "flowsteward-write-snowflake")}
++	for _, fail := range []bool{false, true} {
++		fsCalls = 0
++		fsFail = fail
++		query := "UPDATE products SET name = ? WHERE id = ?"
++		value := "x'; DELETE FROM products --"
++		_, err := source.RunWrite(context.Background(), query, []any{value, int64(5)})
++		if (err != nil) != fail {
++			t.Fatalf("error=%v fail=%v", err, fail)
++		}
++		if fsCalls != 1 || fsSQL != query || len(fsArgs) != 2 || fsArgs[0].Value != value || fsArgs[1].Value != int64(5) {
++			t.Fatalf("write lost binding or retried: %d %q %#v", fsCalls, fsSQL, fsArgs)
++		}
++	}
++}
+diff --git a/internal/sources/snowflake/snowflake.go b/internal/sources/snowflake/snowflake.go
+index e1beced4a7..a47e840da2 100644
+--- a/internal/sources/snowflake/snowflake.go
++++ b/internal/sources/snowflake/snowflake.go
+@@ -162,3 +162,21 @@ func initSnowflakeConnection(ctx context.Context, tracer trace.Tracer, name, acc
+ 
+ 	return db, nil
+ }
++
++// RunWrite executes DML once with driver-bound values and never retries the action.
++func (s *Source) RunWrite(ctx context.Context, statement string, params []any) (any, error) {
++	conn, err := s.SnowflakeDB().Conn(ctx)
++	if err != nil {
++		return nil, err
++	}
++	defer conn.Close()
++	result, err := conn.ExecContext(ctx, statement, params...)
++	if err != nil {
++		return nil, err
++	}
++	affected, err := result.RowsAffected()
++	if err != nil {
++		return []any{}, nil
++	}
++	return []any{map[string]any{"affected_rows": affected}}, nil
++}
+diff --git a/internal/sources/spanner/spanner.go b/internal/sources/spanner/spanner.go
+index a09a18734d..61ad52de1e 100644
+--- a/internal/sources/spanner/spanner.go
++++ b/internal/sources/spanner/spanner.go
+@@ -318,3 +318,20 @@ func (s *Source) InvokeSearchCatalog(ctx context.Context, params map[string]any,
+ 		},
+ 	)
+ }
++
++// RunWrite uses a statement transaction with explicit commit and no retry loop.
++func (s *Source) RunWrite(ctx context.Context, statement string, params map[string]any) (any, error) {
++	txn, err := spanner.NewReadWriteStmtBasedTransaction(ctx, s.SpannerClient())
++	if err != nil {
++		return nil, err
++	}
++	defer txn.Rollback(ctx)
++	affected, err := txn.Update(ctx, spanner.Statement{SQL: statement, Params: params})
++	if err != nil {
++		return nil, err
++	}
++	if _, err := txn.Commit(ctx); err != nil {
++		return nil, err
++	}
++	return []any{map[string]any{"affected_rows": affected}}, nil
++}
+diff --git a/internal/sources/sqlite/flowsteward_lifecycle_test.go b/internal/sources/sqlite/flowsteward_lifecycle_test.go
+new file mode 100644
+index 0000000000..ac3bff0a1f
+--- /dev/null
++++ b/internal/sources/sqlite/flowsteward_lifecycle_test.go
+@@ -0,0 +1,42 @@
++package sqlite
++
++import (
++	"context"
++	"database/sql"
++	"path/filepath"
++	"testing"
++)
++
++func TestFlowStewardBoundWriteSQLiteLifecycle(t *testing.T) {
++	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "orders.db"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer db.Close()
++	if _, err = db.Exec("CREATE TABLE products(id INTEGER PRIMARY KEY, name TEXT)"); err != nil {
++		t.Fatal(err)
++	}
++	source := Source{Db: db}
++	ctx := context.Background()
++	value := "O'Reilly; DELETE FROM products --"
++	if _, err = source.RunWrite(ctx, "INSERT INTO products(id,name) VALUES (?,?)", []any{int64(1), value}); err != nil {
++		t.Fatal(err)
++	}
++	var got string
++	if err = db.QueryRow("SELECT name FROM products WHERE id=?", 1).Scan(&got); err != nil || got != value {
++		t.Fatalf("bound insert: %q %v", got, err)
++	}
++	if _, err = source.RunWrite(ctx, "UPDATE products SET name=? WHERE id=?", []any{"updated", int64(1)}); err != nil {
++		t.Fatal(err)
++	}
++	if err = db.QueryRow("SELECT name FROM products WHERE id=?", 1).Scan(&got); err != nil || got != "updated" {
++		t.Fatalf("bound update: %q %v", got, err)
++	}
++	if _, err = source.RunWrite(ctx, "DELETE FROM products WHERE id=?", []any{int64(1)}); err != nil {
++		t.Fatal(err)
++	}
++	var count int
++	if err = db.QueryRow("SELECT COUNT(*) FROM products").Scan(&count); err != nil || count != 0 {
++		t.Fatalf("bound delete: %d %v", count, err)
++	}
++}
+diff --git a/internal/sources/sqlite/flowsteward_write_test.go b/internal/sources/sqlite/flowsteward_write_test.go
+new file mode 100644
+index 0000000000..2b64cc8d59
+--- /dev/null
++++ b/internal/sources/sqlite/flowsteward_write_test.go
+@@ -0,0 +1,54 @@
++// Copyright 2026 Flow Steward. Licensed under Apache-2.0.
++package sqlite
++
++import (
++	"context"
++	"database/sql"
++	"database/sql/driver"
++	"fmt"
++	"testing"
++)
++
++type fsWriteDriver struct{}
++type fsWriteConn struct{}
++
++var fsCalls int
++var fsSQL string
++var fsArgs []driver.NamedValue
++var fsFail bool
++
++func (fsWriteDriver) Open(string) (driver.Conn, error)  { return fsWriteConn{}, nil }
++func (fsWriteConn) Prepare(string) (driver.Stmt, error) { return nil, fmt.Errorf("unexpected prepare") }
++func (fsWriteConn) Close() error                        { return nil }
++func (fsWriteConn) Begin() (driver.Tx, error)           { return nil, fmt.Errorf("unexpected transaction") }
++func (fsWriteConn) ExecContext(_ context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
++	fsCalls++
++	fsSQL = query
++	fsArgs = args
++	if fsFail {
++		return nil, driver.ErrBadConn
++	}
++	return driver.RowsAffected(1), nil
++}
++func init() { sql.Register("flowsteward-write-sqlite", fsWriteDriver{}) }
++func TestFlowStewardBoundWrite(t *testing.T) {
++	db, err := sql.Open("flowsteward-write-sqlite", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer db.Close()
++	source := Source{Db: db}
++	for _, fail := range []bool{false, true} {
++		fsCalls = 0
++		fsFail = fail
++		query := "UPDATE products SET name = ? WHERE id = ?"
++		value := "x'; DELETE FROM products --"
++		_, err := source.RunWrite(context.Background(), query, []any{value, int64(5)})
++		if (err != nil) != fail {
++			t.Fatalf("error=%v fail=%v", err, fail)
++		}
++		if fsCalls != 1 || fsSQL != query || len(fsArgs) != 2 || fsArgs[0].Value != value || fsArgs[1].Value != int64(5) {
++			t.Fatalf("write lost binding or retried: %d %q %#v", fsCalls, fsSQL, fsArgs)
++		}
++	}
++}
+diff --git a/internal/sources/sqlite/sqlite.go b/internal/sources/sqlite/sqlite.go
+index db89f54773..e8bcca6af4 100644
+--- a/internal/sources/sqlite/sqlite.go
++++ b/internal/sources/sqlite/sqlite.go
+@@ -178,3 +178,21 @@ func initSQLiteConnection(ctx context.Context, tracer trace.Tracer, name, dbPath
+ 
+ 	return db, nil
+ }
++
++// RunWrite executes DML once with driver-bound values and never retries the action.
++func (s *Source) RunWrite(ctx context.Context, statement string, params []any) (any, error) {
++	conn, err := s.SQLiteDB().Conn(ctx)
++	if err != nil {
++		return nil, err
++	}
++	defer conn.Close()
++	result, err := conn.ExecContext(ctx, statement, params...)
++	if err != nil {
++		return nil, err
++	}
++	affected, err := result.RowsAffected()
++	if err != nil {
++		return []any{}, nil
++	}
++	return []any{map[string]any{"affected_rows": affected}}, nil
++}
 diff --git a/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go b/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go
-index 55c8ccc..b542f3f 100644
+index d9dbd31436..924511bb09 100644
 --- a/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go
 +++ b/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go
+@@ -23,6 +23,7 @@ import (
+ 	"github.com/googleapis/mcp-toolbox/internal/sources"
+ 	"github.com/googleapis/mcp-toolbox/internal/tools"
+ 	"github.com/googleapis/mcp-toolbox/internal/util"
++	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
+ 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
+ )
+ 
+@@ -63,8 +64,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
+ 		return nil, fmt.Errorf("description is required for tool %q", cfg.Name)
+ 	}
+ 
+-	sqlParameter := parameters.NewStringParameter("sql", "The SQL statement to execute.")
+-	params := parameters.Parameters{sqlParameter}
++	params := flowstewardbinding.ToolParameters()
+ 
+ 	return Tool{
+ 		BaseTool: tools.NewBaseTool(
+@@ -103,12 +103,29 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
+ 	if !ok {
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, nil)
+ 	}
+-	paramsMap := params.AsMap()
+-	sql, ok := paramsMap["sql"].(string)
+-	if !ok {
+-		return nil, util.NewAgentError(fmt.Sprintf("unable to cast sql parameter %s", paramsMap["sql"]), nil)
++
++	boundQuery, bindErr := flowstewardbinding.Parse(params)
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid bound query", bindErr)
++	}
++	driverParams, bindErr := boundQuery.ParamValues()
++	if bindErr != nil {
++		return nil, util.NewAgentError("invalid clickhouse binding", bindErr)
++	}
++	if boundQuery.Write {
++		writer, ok := any(source).(interface {
++			RunWrite(context.Context, string, []any) (any, error)
++		})
++		if !ok {
++			return nil, util.NewAgentError("source does not support bound DML", nil)
++		}
++		result, err := writer.RunWrite(ctx, boundQuery.SQL, driverParams.AsSlice())
++		if err != nil {
++			return nil, util.ProcessGeneralError(err)
++		}
++		return result, nil
+ 	}
+-	resp, err := source.RunSQL(ctx, sql, nil)
++	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
+ 	if err != nil {
+ 		return nil, util.ProcessGeneralError(err)
+ 	}
+diff --git a/internal/tools/clickhouse/clickhouseexecutesql/flowsteward_test.go b/internal/tools/clickhouse/clickhouseexecutesql/flowsteward_test.go
+new file mode 100644
+index 0000000000..eceb531c40
+--- /dev/null
++++ b/internal/tools/clickhouse/clickhouseexecutesql/flowsteward_test.go
+@@ -0,0 +1,85 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++package clickhouse
++
++import (
++	"context"
++	"github.com/googleapis/mcp-toolbox/internal/sources"
++	"github.com/googleapis/mcp-toolbox/internal/testutils"
++	"github.com/googleapis/mcp-toolbox/internal/tools"
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++	"reflect"
++	"testing"
++)
++
++type flowStewardSource struct {
++	sources.Source
++	sql    string
++	values parameters.ParamValues
++	calls  int
++}
++
++func (s *flowStewardSource) RunSQL(ctx context.Context, statement string, values parameters.ParamValues) (any, error) {
++	s.sql = statement
++	s.values = values
++	s.calls++
++	return "ok", nil
++}
++func TestFlowStewardInvokeBoundValues(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "SELECT $1, $2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := parameters.ParamValues{{Name: "event", Value: value}, {Name: "event", Value: value}}
++	if source.sql != "SELECT $1, $2" || !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("driver received SQL=%q values=%#v; want separated bound values %#v", source.sql, source.values, want)
++	}
++	params[3].Value = "unsupported"
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err == nil {
++		t.Fatal("invalid binding reached driver")
++	}
++	if source.calls != 1 {
++		t.Fatalf("driver invoked %d times", source.calls)
++	}
++}
++
++func (s *flowStewardSource) RunWrite(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.calls += 100
++	s.values = parameters.ParamValues{{Name: "event", Value: values[0]}, {Name: "event", Value: values[1]}}
++	return "ok", nil
++}
++
++func TestFlowStewardInvokeWriteDispatch(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "UPDATE events SET event=$1 WHERE parent=$2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "write-positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := parameters.ParamValues{{Name: "event", Value: value}, {Name: "event", Value: value}}
++	if !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("write lost bound values: %#v", source.values)
++	}
++	if source.calls != 100 || source.sql != "UPDATE events SET event=$1 WHERE parent=$2" {
++		t.Fatalf("write did not use once-only driver: calls=%d SQL=%q", source.calls, source.sql)
++	}
++}
+diff --git a/internal/tools/mssql/mssqlexecutesql/flowsteward_test.go b/internal/tools/mssql/mssqlexecutesql/flowsteward_test.go
+new file mode 100644
+index 0000000000..15bb0190ca
+--- /dev/null
++++ b/internal/tools/mssql/mssqlexecutesql/flowsteward_test.go
+@@ -0,0 +1,57 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++package mssqlexecutesql
++
++import (
++	"context"
++	"database/sql"
++	"github.com/googleapis/mcp-toolbox/internal/sources"
++	"github.com/googleapis/mcp-toolbox/internal/testutils"
++	"github.com/googleapis/mcp-toolbox/internal/tools"
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++	"reflect"
++	"testing"
++)
++
++type flowStewardSource struct {
++	sources.Source
++	sql    string
++	values []any
++	calls  int
++}
++
++func (*flowStewardSource) MSSQLDB() *sql.DB { return nil }
++
++func (s *flowStewardSource) RunSQL(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.values = values
++	s.calls++
++	return "ok", nil
++}
++func TestFlowStewardInvokeBoundValues(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "SELECT $1, $2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "named-positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{sql.Named("p1", value), sql.Named("p2", value)}
++	if source.sql != "SELECT $1, $2" || !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("driver received SQL=%q values=%#v; want separated bound values %#v", source.sql, source.values, want)
++	}
++	params[3].Value = "unsupported"
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err == nil {
++		t.Fatal("invalid binding reached driver")
++	}
++	if source.calls != 1 {
++		t.Fatalf("driver invoked %d times", source.calls)
++	}
++}
+diff --git a/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go b/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
+index cc3e6ef06a..43bf93256a 100644
+--- a/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
++++ b/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
 @@ -24,6 +24,7 @@ import (
  	"github.com/googleapis/mcp-toolbox/internal/sources"
  	"github.com/googleapis/mcp-toolbox/internal/tools"
@@ -10,64 +725,30 @@ index 55c8ccc..b542f3f 100644
  	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
  )
  
-@@ -65,8 +66,7 @@ func (cfg Config) ToolConfigType() string {
- }
- 
- func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
--	sqlParameter := parameters.NewStringParameter("sql", "The SQL statement to execute.")
--	params := parameters.Parameters{sqlParameter}
-+	params := flowstewardbinding.ToolParameters()
- 
- 	t := Tool{
- 		Config:     cfg,
-@@ -110,12 +110,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
- 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, err)
+@@ -66,8 +67,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
+ 		return nil, fmt.Errorf("description is required for tool %q", cfg.Name)
  	}
  
--	paramsMap := params.AsMap()
--	sql, ok := paramsMap["sql"].(string)
--	if !ok {
--		return nil, util.NewAgentError(fmt.Sprintf("unable to cast sql parameter %s", paramsMap["sql"]), nil)
-+	boundQuery, bindErr := flowstewardbinding.Parse(params)
-+	if bindErr != nil {
-+		return nil, util.NewAgentError("invalid bound query", bindErr)
- 	}
--	resp, err := source.RunSQL(ctx, sql, nil)
-+	driverParams, bindErr := boundQuery.ParamValues()
-+	if bindErr != nil {
-+		return nil, util.NewAgentError("invalid clickhouse binding", bindErr)
-+	}
-+	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
- 	if err != nil {
- 		return nil, util.ProcessGeneralError(err)
- 	}
-diff --git a/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go b/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
-index 0bf8e69..84fd8e2 100644
---- a/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
-+++ b/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
-@@ -25,6 +25,7 @@ import (
- 	"github.com/googleapis/mcp-toolbox/internal/sources"
- 	"github.com/googleapis/mcp-toolbox/internal/tools"
- 	"github.com/googleapis/mcp-toolbox/internal/util"
-+	"github.com/googleapis/mcp-toolbox/internal/util/flowstewardbinding"
- 	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
- )
- 
-@@ -68,8 +69,7 @@ func (cfg Config) ToolConfigType() string {
- }
- 
- func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
 -	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
--	params := parameters.Parameters{sqlParameter}
-+	params := flowstewardbinding.ToolParameters()
+-	allParameters := parameters.Parameters{sqlParameter}
++	allParameters := flowstewardbinding.ToolParameters()
  
- 	// finish tool setup
- 	t := Tool{
-@@ -107,7 +107,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
- 		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
+ 	return Tool{
+ 		BaseTool: tools.NewBaseTool(
+@@ -91,19 +91,16 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
+ 	if !ok {
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, nil)
  	}
- 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
--	resp, err := source.RunSQL(ctx, sqlStr, nil)
+-	paramsMap := params.AsMap()
+-	sqlStr, ok := paramsMap["sql"].(string)
+-	if !ok {
+-		return nil, util.NewAgentError(fmt.Sprintf("unable to get cast %s", paramsMap["sql"]), nil)
+-	}
+ 
+-	// Log the query executed for debugging.
+-	logger, err := util.LoggerFromContext(ctx)
+-	if err != nil {
+-		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
 +	boundQuery, bindErr := flowstewardbinding.Parse(params)
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid bound query", bindErr)
@@ -75,16 +756,81 @@ index 0bf8e69..84fd8e2 100644
 +	driverParams, bindErr := boundQuery.NamedPositional()
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid mssql binding", bindErr)
-+	}
+ 	}
+-	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
 +	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
  	if err != nil {
  		return nil, util.ProcessGeneralError(err)
  	}
+diff --git a/internal/tools/mysql/mysqlexecutesql/flowsteward_test.go b/internal/tools/mysql/mysqlexecutesql/flowsteward_test.go
+new file mode 100644
+index 0000000000..7ea3571b50
+--- /dev/null
++++ b/internal/tools/mysql/mysqlexecutesql/flowsteward_test.go
+@@ -0,0 +1,57 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++package mysqlexecutesql
++
++import (
++	"context"
++	"database/sql"
++	"github.com/googleapis/mcp-toolbox/internal/sources"
++	"github.com/googleapis/mcp-toolbox/internal/testutils"
++	"github.com/googleapis/mcp-toolbox/internal/tools"
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++	"reflect"
++	"testing"
++)
++
++type flowStewardSource struct {
++	sources.Source
++	sql    string
++	values []any
++	calls  int
++}
++
++func (*flowStewardSource) MySQLPool() *sql.DB { return nil }
++
++func (s *flowStewardSource) RunSQL(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.values = values
++	s.calls++
++	return "ok", nil
++}
++func TestFlowStewardInvokeBoundValues(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "SELECT $1, $2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{value, value}
++	if source.sql != "SELECT $1, $2" || !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("driver received SQL=%q values=%#v; want separated bound values %#v", source.sql, source.values, want)
++	}
++	params[3].Value = "unsupported"
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err == nil {
++		t.Fatal("invalid binding reached driver")
++	}
++	if source.calls != 1 {
++		t.Fatalf("driver invoked %d times", source.calls)
++	}
++}
 diff --git a/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go b/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go
-index 6fff872..b365894 100644
+index 11d3bad3a4..22b49a952c 100644
 --- a/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go
 +++ b/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go
-@@ -25,6 +25,7 @@ import (
+@@ -24,6 +24,7 @@ import (
  	"github.com/googleapis/mcp-toolbox/internal/sources"
  	"github.com/googleapis/mcp-toolbox/internal/tools"
  	"github.com/googleapis/mcp-toolbox/internal/util"
@@ -92,21 +838,30 @@ index 6fff872..b365894 100644
  	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
  )
  
-@@ -68,8 +69,7 @@ func (cfg Config) ToolConfigType() string {
- }
+@@ -66,8 +67,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
+ 		return nil, fmt.Errorf("description is required for tool %q", cfg.Name)
+ 	}
  
- func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
 -	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
 -	params := parameters.Parameters{sqlParameter}
 +	params := flowstewardbinding.ToolParameters()
  
- 	// finish tool setup
- 	t := Tool{
-@@ -107,7 +107,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
- 		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
+ 	return Tool{
+ 		BaseTool: tools.NewBaseTool(
+@@ -91,19 +91,16 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
+ 	if !ok {
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, nil)
  	}
- 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
--	resp, err := source.RunSQL(ctx, sqlStr, nil)
+-	paramsMap := params.AsMap()
+-	sqlStr, ok := paramsMap["sql"].(string)
+-	if !ok {
+-		return nil, util.NewAgentError(fmt.Sprintf("unable to get cast %s", paramsMap["sql"]), nil)
+-	}
+ 
+-	// Log the query executed for debugging.
+-	logger, err := util.LoggerFromContext(ctx)
+-	if err != nil {
+-		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
 +	boundQuery, bindErr := flowstewardbinding.Parse(params)
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid bound query", bindErr)
@@ -114,16 +869,112 @@ index 6fff872..b365894 100644
 +	driverParams, bindErr := boundQuery.Positional()
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid mysql binding", bindErr)
-+	}
+ 	}
+-	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
 +	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
  	if err != nil {
  		return nil, util.ProcessGeneralError(err)
  	}
+diff --git a/internal/tools/oceanbase/oceanbaseexecutesql/flowsteward_test.go b/internal/tools/oceanbase/oceanbaseexecutesql/flowsteward_test.go
+new file mode 100644
+index 0000000000..37796f6438
+--- /dev/null
++++ b/internal/tools/oceanbase/oceanbaseexecutesql/flowsteward_test.go
+@@ -0,0 +1,88 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++package oceanbaseexecutesql
++
++import (
++	"context"
++	"database/sql"
++	"github.com/googleapis/mcp-toolbox/internal/sources"
++	"github.com/googleapis/mcp-toolbox/internal/testutils"
++	"github.com/googleapis/mcp-toolbox/internal/tools"
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++	"reflect"
++	"testing"
++)
++
++type flowStewardSource struct {
++	sources.Source
++	sql    string
++	values []any
++	calls  int
++}
++
++func (*flowStewardSource) OceanBasePool() *sql.DB { return nil }
++
++func (s *flowStewardSource) RunSQL(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.values = values
++	s.calls++
++	return "ok", nil
++}
++func TestFlowStewardInvokeBoundValues(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "SELECT $1, $2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{value, value}
++	if source.sql != "SELECT $1, $2" || !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("driver received SQL=%q values=%#v; want separated bound values %#v", source.sql, source.values, want)
++	}
++	params[3].Value = "unsupported"
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err == nil {
++		t.Fatal("invalid binding reached driver")
++	}
++	if source.calls != 1 {
++		t.Fatalf("driver invoked %d times", source.calls)
++	}
++}
++
++func (s *flowStewardSource) RunWrite(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.calls += 100
++	s.values = values
++	return "ok", nil
++}
++
++func TestFlowStewardInvokeWriteDispatch(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "UPDATE events SET event=$1 WHERE parent=$2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "write-positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{value, value}
++	if !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("write lost bound values: %#v", source.values)
++	}
++	if source.calls != 100 || source.sql != "UPDATE events SET event=$1 WHERE parent=$2" {
++		t.Fatalf("write did not use once-only driver: calls=%d SQL=%q", source.calls, source.sql)
++	}
++}
 diff --git a/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go b/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go
-index 6471331..c38a95f 100644
+index bea7bfb302..6f829efbcc 100644
 --- a/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go
 +++ b/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go
-@@ -25,6 +25,7 @@ import (
+@@ -24,6 +24,7 @@ import (
  	"github.com/googleapis/mcp-toolbox/internal/sources"
  	"github.com/googleapis/mcp-toolbox/internal/tools"
  	"github.com/googleapis/mcp-toolbox/internal/util"
@@ -131,42 +982,119 @@ index 6471331..c38a95f 100644
  	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
  )
  
-@@ -68,8 +69,7 @@ func (cfg Config) ToolConfigType() string {
- }
- 
- func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
--	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
--	params := parameters.Parameters{sqlParameter}
-+	params := flowstewardbinding.ToolParameters()
- 
- 	// finish tool setup
- 	t := Tool{
-@@ -96,12 +96,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
- 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, err)
+@@ -66,8 +67,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
+ 		return nil, fmt.Errorf("description is required for tool %q", cfg.Name)
  	}
  
+-	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
+-	allParameters := parameters.Parameters{sqlParameter}
++	allParameters := flowstewardbinding.ToolParameters()
+ 
+ 	return Tool{
+ 		BaseTool: tools.NewBaseTool(
+@@ -92,12 +92,29 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
+ 	if !ok {
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, nil)
+ 	}
 -	sliceParams := params.AsSlice()
 -	sqlStr, ok := sliceParams[0].(string)
 -	if !ok {
 -		return nil, util.NewAgentError(fmt.Sprintf("unable to get cast %s", sliceParams[0]), nil)
++
 +	boundQuery, bindErr := flowstewardbinding.Parse(params)
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid bound query", bindErr)
- 	}
--	resp, err := source.RunSQL(ctx, sqlStr, nil)
++	}
 +	driverParams, bindErr := boundQuery.Positional()
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid oceanbase binding", bindErr)
 +	}
++	if boundQuery.Write {
++		writer, ok := any(source).(interface {
++			RunWrite(context.Context, string, []any) (any, error)
++		})
++		if !ok {
++			return nil, util.NewAgentError("source does not support bound DML", nil)
++		}
++		result, err := writer.RunWrite(ctx, boundQuery.SQL, driverParams)
++		if err != nil {
++			return nil, util.ProcessGeneralError(err)
++		}
++		return result, nil
+ 	}
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
 +	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
  	if err != nil {
  		return nil, util.ProcessGeneralError(err)
  	}
+diff --git a/internal/tools/postgres/postgresexecutesql/flowsteward_test.go b/internal/tools/postgres/postgresexecutesql/flowsteward_test.go
+new file mode 100644
+index 0000000000..46225d51e8
+--- /dev/null
++++ b/internal/tools/postgres/postgresexecutesql/flowsteward_test.go
+@@ -0,0 +1,57 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++package postgresexecutesql
++
++import (
++	"context"
++	"github.com/googleapis/mcp-toolbox/internal/sources"
++	"github.com/googleapis/mcp-toolbox/internal/testutils"
++	"github.com/googleapis/mcp-toolbox/internal/tools"
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++	"github.com/jackc/pgx/v5/pgxpool"
++	"reflect"
++	"testing"
++)
++
++type flowStewardSource struct {
++	sources.Source
++	sql    string
++	values []any
++	calls  int
++}
++
++func (*flowStewardSource) PostgresPool() *pgxpool.Pool { return nil }
++
++func (s *flowStewardSource) RunSQL(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.values = values
++	s.calls++
++	return "ok", nil
++}
++func TestFlowStewardInvokeBoundValues(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "SELECT $1, $2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "numbered"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{value, value}
++	if source.sql != "SELECT $1, $2" || !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("driver received SQL=%q values=%#v; want separated bound values %#v", source.sql, source.values, want)
++	}
++	params[3].Value = "unsupported"
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err == nil {
++		t.Fatal("invalid binding reached driver")
++	}
++	if source.calls != 1 {
++		t.Fatalf("driver invoked %d times", source.calls)
++	}
++}
 diff --git a/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go b/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go
-index ae442ce..9899c1f 100644
+index 62e8c0a1e1..843b34d8dd 100644
 --- a/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go
 +++ b/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go
-@@ -24,6 +24,7 @@ import (
+@@ -23,6 +23,7 @@ import (
  	"github.com/googleapis/mcp-toolbox/internal/sources"
  	"github.com/googleapis/mcp-toolbox/internal/tools"
  	"github.com/googleapis/mcp-toolbox/internal/util"
@@ -174,35 +1102,140 @@ index ae442ce..9899c1f 100644
  	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
  	"github.com/jackc/pgx/v5/pgxpool"
  )
-@@ -67,8 +68,7 @@ func (cfg Config) ToolConfigType() string {
- }
- 
- func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
--	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
--	params := parameters.Parameters{sqlParameter}
-+	params := flowstewardbinding.ToolParameters()
- 
- 	t := Tool{
- 		Config:     cfg,
-@@ -103,7 +103,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+@@ -64,9 +65,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
+ 	if cfg.Description == "" {
+ 		return nil, fmt.Errorf("description is required for tool %q", cfg.Name)
  	}
- 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sql))
+-	allParameters := parameters.Parameters{
+-		parameters.NewStringParameter("sql", "The sql to execute."),
+-	}
++	allParameters := flowstewardbinding.ToolParameters()
  
--	resp, err := source.RunSQL(ctx, sql, nil)
+ 	return Tool{
+ 		BaseTool: tools.NewBaseTool(
+@@ -89,18 +88,16 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
+ 	if !ok {
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, nil)
+ 	}
+-	paramsMap := params.AsMap()
+-	sql, ok := paramsMap["sql"].(string)
+-	if !ok {
+-		return nil, util.NewAgentError(fmt.Sprintf("unable to get cast %s", paramsMap["sql"]), nil)
++
 +	boundQuery, bindErr := flowstewardbinding.Parse(params)
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid bound query", bindErr)
-+	}
+ 	}
+-	logger, err := util.LoggerFromContext(ctx)
+-	if err != nil {
+-		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
 +	driverParams, bindErr := boundQuery.Positional()
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid postgres binding", bindErr)
-+	}
+ 	}
+-	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sql))
+-
+-	resp, err := source.RunSQL(ctx, sql, nil)
 +	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
  	if err != nil {
  		return nil, util.ProcessGeneralError(err)
  	}
+diff --git a/internal/tools/singlestore/singlestoreexecutesql/flowsteward_test.go b/internal/tools/singlestore/singlestoreexecutesql/flowsteward_test.go
+new file mode 100644
+index 0000000000..a0d1c389c3
+--- /dev/null
++++ b/internal/tools/singlestore/singlestoreexecutesql/flowsteward_test.go
+@@ -0,0 +1,88 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++package singlestoreexecutesql
++
++import (
++	"context"
++	"database/sql"
++	"github.com/googleapis/mcp-toolbox/internal/sources"
++	"github.com/googleapis/mcp-toolbox/internal/testutils"
++	"github.com/googleapis/mcp-toolbox/internal/tools"
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++	"reflect"
++	"testing"
++)
++
++type flowStewardSource struct {
++	sources.Source
++	sql    string
++	values []any
++	calls  int
++}
++
++func (*flowStewardSource) SingleStorePool() *sql.DB { return nil }
++
++func (s *flowStewardSource) RunSQL(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.values = values
++	s.calls++
++	return "ok", nil
++}
++func TestFlowStewardInvokeBoundValues(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "SELECT $1, $2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{value, value}
++	if source.sql != "SELECT $1, $2" || !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("driver received SQL=%q values=%#v; want separated bound values %#v", source.sql, source.values, want)
++	}
++	params[3].Value = "unsupported"
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err == nil {
++		t.Fatal("invalid binding reached driver")
++	}
++	if source.calls != 1 {
++		t.Fatalf("driver invoked %d times", source.calls)
++	}
++}
++
++func (s *flowStewardSource) RunWrite(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.calls += 100
++	s.values = values
++	return "ok", nil
++}
++
++func TestFlowStewardInvokeWriteDispatch(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "UPDATE events SET event=$1 WHERE parent=$2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "write-positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{value, value}
++	if !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("write lost bound values: %#v", source.values)
++	}
++	if source.calls != 100 || source.sql != "UPDATE events SET event=$1 WHERE parent=$2" {
++		t.Fatalf("write did not use once-only driver: calls=%d SQL=%q", source.calls, source.sql)
++	}
++}
 diff --git a/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go b/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go
-index cdc54a3..5f84801 100644
+index 4cfe088fc9..29befba8c5 100644
 --- a/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go
 +++ b/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go
 @@ -25,6 +25,7 @@ import (
@@ -213,38 +1246,157 @@ index cdc54a3..5f84801 100644
  	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
  )
  
-@@ -71,8 +72,7 @@ func (cfg Config) ToolConfigType() string {
- 
- // Initialize sets up the Tool using the provided sources map.
- func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
--	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
--	params := parameters.Parameters{sqlParameter}
-+	params := flowstewardbinding.ToolParameters()
- 
- 	// finish tool setup
- 	t := Tool{
-@@ -133,7 +133,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+@@ -70,8 +71,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
+ 		return nil, fmt.Errorf("description is required for tool %q", cfg.Name)
  	}
- 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
  
--	resp, err := source.RunSQL(ctx, sqlStr, nil)
+-	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
+-	allParameters := parameters.Parameters{sqlParameter}
++	allParameters := flowstewardbinding.ToolParameters()
+ 
+ 	return Tool{
+ 		BaseTool: tools.NewBaseTool(
+@@ -97,20 +97,29 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
+ 	if !ok {
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, nil)
+ 	}
+-	paramsMap := params.AsMap()
+-	sqlStr, ok := paramsMap["sql"].(string)
+-	if !ok {
+-		return nil, util.NewAgentError(fmt.Sprintf("unable to cast parameter 'sql' to string: %v", paramsMap["sql"]), nil)
+-	}
+ 
+-	// Log the query executed for debugging.
+-	logger, err := util.LoggerFromContext(ctx)
+-	if err != nil {
+-		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
 +	boundQuery, bindErr := flowstewardbinding.Parse(params)
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid bound query", bindErr)
-+	}
+ 	}
+-	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+-
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
 +	driverParams, bindErr := boundQuery.Positional()
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid singlestore binding", bindErr)
++	}
++	if boundQuery.Write {
++		writer, ok := any(source).(interface {
++			RunWrite(context.Context, string, []any) (any, error)
++		})
++		if !ok {
++			return nil, util.NewAgentError("source does not support bound DML", nil)
++		}
++		result, err := writer.RunWrite(ctx, boundQuery.SQL, driverParams)
++		if err != nil {
++			return nil, util.ProcessGeneralError(err)
++		}
++		return result, nil
 +	}
 +	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
  	if err != nil {
  		return nil, util.ProcessGeneralError(err)
  	}
+diff --git a/internal/tools/snowflake/snowflakeexecutesql/flowsteward_test.go b/internal/tools/snowflake/snowflakeexecutesql/flowsteward_test.go
+new file mode 100644
+index 0000000000..c514bb3af1
+--- /dev/null
++++ b/internal/tools/snowflake/snowflakeexecutesql/flowsteward_test.go
+@@ -0,0 +1,88 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++package snowflakeexecutesql
++
++import (
++	"context"
++	"github.com/googleapis/mcp-toolbox/internal/sources"
++	"github.com/googleapis/mcp-toolbox/internal/testutils"
++	"github.com/googleapis/mcp-toolbox/internal/tools"
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++	"github.com/jmoiron/sqlx"
++	"reflect"
++	"testing"
++)
++
++type flowStewardSource struct {
++	sources.Source
++	sql    string
++	values []any
++	calls  int
++}
++
++func (*flowStewardSource) SnowflakeDB() *sqlx.DB { return nil }
++
++func (s *flowStewardSource) RunSQL(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.values = values
++	s.calls++
++	return "ok", nil
++}
++func TestFlowStewardInvokeBoundValues(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "SELECT $1, $2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{value, value}
++	if source.sql != "SELECT $1, $2" || !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("driver received SQL=%q values=%#v; want separated bound values %#v", source.sql, source.values, want)
++	}
++	params[3].Value = "unsupported"
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err == nil {
++		t.Fatal("invalid binding reached driver")
++	}
++	if source.calls != 1 {
++		t.Fatalf("driver invoked %d times", source.calls)
++	}
++}
++
++func (s *flowStewardSource) RunWrite(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.calls += 100
++	s.values = values
++	return "ok", nil
++}
++
++func TestFlowStewardInvokeWriteDispatch(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "UPDATE events SET event=$1 WHERE parent=$2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "write-positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{value, value}
++	if !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("write lost bound values: %#v", source.values)
++	}
++	if source.calls != 100 || source.sql != "UPDATE events SET event=$1 WHERE parent=$2" {
++		t.Fatalf("write did not use once-only driver: calls=%d SQL=%q", source.calls, source.sql)
++	}
++}
 diff --git a/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go b/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go
-index 0c7fc90..c8843b3 100644
+index fbca8ac574..b130e3c391 100644
 --- a/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go
 +++ b/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go
-@@ -24,6 +24,7 @@ import (
+@@ -23,6 +23,7 @@ import (
  	"github.com/googleapis/mcp-toolbox/internal/sources"
  	"github.com/googleapis/mcp-toolbox/internal/tools"
  	"github.com/googleapis/mcp-toolbox/internal/util"
@@ -252,38 +1404,158 @@ index 0c7fc90..c8843b3 100644
  	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
  	"github.com/jmoiron/sqlx"
  )
-@@ -68,8 +69,7 @@ func (cfg Config) ToolConfigType() string {
- }
+@@ -66,8 +67,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
+ 		return nil, fmt.Errorf("description is required for tool %q", cfg.Name)
+ 	}
  
- func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
 -	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
 -	params := parameters.Parameters{sqlParameter}
 +	params := flowstewardbinding.ToolParameters()
  
- 	// finish tool setup
- 	t := Tool{
-@@ -108,7 +108,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 	return Tool{
+ 		BaseTool: tools.NewBaseTool(
+@@ -107,20 +107,29 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
+ 	if !ok {
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, nil)
  	}
- 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+-	mapParams := params.AsMap()
+-	sqlStr, ok := mapParams["sql"].(string)
+-	if !ok {
+-		return nil, util.NewAgentError("invalid parameters: sql parameter is not a string", nil)
+-	}
  
--	resp, err := source.RunSQL(ctx, sqlStr, nil)
+-	// Log the query executed for debugging.
+-	logger, err := util.LoggerFromContext(ctx)
+-	if err != nil {
+-		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
 +	boundQuery, bindErr := flowstewardbinding.Parse(params)
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid bound query", bindErr)
-+	}
+ 	}
+-	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+-
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
 +	driverParams, bindErr := boundQuery.Positional()
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid snowflake binding", bindErr)
++	}
++	if boundQuery.Write {
++		writer, ok := any(source).(interface {
++			RunWrite(context.Context, string, []any) (any, error)
++		})
++		if !ok {
++			return nil, util.NewAgentError("source does not support bound DML", nil)
++		}
++		result, err := writer.RunWrite(ctx, boundQuery.SQL, driverParams)
++		if err != nil {
++			return nil, util.ProcessGeneralError(err)
++		}
++		return result, nil
 +	}
 +	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
  	if err != nil {
  		return nil, util.ProcessGeneralError(err)
  	}
+diff --git a/internal/tools/spanner/spannerexecutesql/flowsteward_test.go b/internal/tools/spanner/spannerexecutesql/flowsteward_test.go
+new file mode 100644
+index 0000000000..53f791d9be
+--- /dev/null
++++ b/internal/tools/spanner/spannerexecutesql/flowsteward_test.go
+@@ -0,0 +1,89 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++package spannerexecutesql
++
++import (
++	"cloud.google.com/go/spanner"
++	"context"
++	"github.com/googleapis/mcp-toolbox/internal/sources"
++	"github.com/googleapis/mcp-toolbox/internal/testutils"
++	"github.com/googleapis/mcp-toolbox/internal/tools"
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++	"reflect"
++	"testing"
++)
++
++type flowStewardSource struct {
++	sources.Source
++	sql    string
++	values map[string]any
++	calls  int
++}
++
++func (*flowStewardSource) SpannerClient() *spanner.Client { return nil }
++func (*flowStewardSource) DatabaseDialect() string        { return "GOOGLE_STANDARD_SQL" }
++
++func (s *flowStewardSource) RunSQL(ctx context.Context, readOnly bool, statement string, values map[string]any) (any, error) {
++	s.sql = statement
++	s.values = values
++	s.calls++
++	return "ok", nil
++}
++func TestFlowStewardInvokeBoundValues(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "SELECT $1, $2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "numbered-map"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := map[string]any{"p1": value, "p2": value}
++	if source.sql != "SELECT $1, $2" || !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("driver received SQL=%q values=%#v; want separated bound values %#v", source.sql, source.values, want)
++	}
++	params[3].Value = "unsupported"
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err == nil {
++		t.Fatal("invalid binding reached driver")
++	}
++	if source.calls != 1 {
++		t.Fatalf("driver invoked %d times", source.calls)
++	}
++}
++
++func (s *flowStewardSource) RunWrite(ctx context.Context, statement string, values map[string]any) (any, error) {
++	s.sql = statement
++	s.calls += 100
++	s.values = values
++	return "ok", nil
++}
++
++func TestFlowStewardInvokeWriteDispatch(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "UPDATE events SET event=$1 WHERE parent=$2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "write-numbered-map"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := map[string]any{"p1": value, "p2": value}
++	if !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("write lost bound values: %#v", source.values)
++	}
++	if source.calls != 100 || source.sql != "UPDATE events SET event=$1 WHERE parent=$2" {
++		t.Fatalf("write did not use once-only driver: calls=%d SQL=%q", source.calls, source.sql)
++	}
++}
 diff --git a/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go b/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go
-index 2acb7f4..17de5e9 100644
+index 3915b74b95..afd75d7e18 100644
 --- a/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go
 +++ b/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go
-@@ -25,6 +25,7 @@ import (
+@@ -24,6 +24,7 @@ import (
  	"github.com/googleapis/mcp-toolbox/internal/sources"
  	"github.com/googleapis/mcp-toolbox/internal/tools"
  	"github.com/googleapis/mcp-toolbox/internal/util"
@@ -291,21 +1563,30 @@ index 2acb7f4..17de5e9 100644
  	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
  )
  
-@@ -70,8 +71,7 @@ func (cfg Config) ToolConfigType() string {
- }
+@@ -68,8 +69,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
+ 		return nil, fmt.Errorf("description is required for tool %q", cfg.Name)
+ 	}
  
- func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
 -	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
 -	params := parameters.Parameters{sqlParameter}
 +	params := flowstewardbinding.ToolParameters()
  
- 	// finish tool setup
- 	t := Tool{
-@@ -109,7 +109,20 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
- 		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
+ 	defaultAnnotations := tools.NewDestructiveAnnotations
+ 	if cfg.ReadOnly {
+@@ -98,19 +98,34 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
+ 	if !ok {
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, nil)
  	}
- 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sql))
--	resp, err := source.RunSQL(ctx, t.ReadOnly, sql, nil)
+-	paramsMap := params.AsMap()
+-	sql, ok := paramsMap["sql"].(string)
+-	if !ok {
+-		return nil, util.NewAgentError(fmt.Sprintf("unable to get cast %s", paramsMap["sql"]), nil)
+-	}
+ 
+-	// Log the query executed for debugging.
+-	logger, err := util.LoggerFromContext(ctx)
+-	if err != nil {
+-		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
 +	boundQuery, bindErr := flowstewardbinding.Parse(params)
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid bound query", bindErr)
@@ -319,15 +1600,124 @@ index 2acb7f4..17de5e9 100644
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid spanner binding", bindErr)
 +	}
-+	resp, err := source.RunSQL(ctx, t.ReadOnly, boundQuery.SQL, driverParams)
++	if boundQuery.Write {
++		writer, ok := any(source).(interface {
++			RunWrite(context.Context, string, map[string]any) (any, error)
++		})
++		if !ok {
++			return nil, util.NewAgentError("source does not support bound DML", nil)
++		}
++		result, err := writer.RunWrite(ctx, boundQuery.SQL, driverParams)
++		if err != nil {
++			return nil, util.ProcessGeneralError(err)
++		}
++		return result, nil
+ 	}
+-	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sql))
+-	resp, err := source.RunSQL(ctx, t.Cfg.ReadOnly, sql, nil)
++	resp, err := source.RunSQL(ctx, t.Cfg.ReadOnly, boundQuery.SQL, driverParams)
  	if err != nil {
  		return nil, util.ProcessGcpError(err)
  	}
+diff --git a/internal/tools/sqlite/sqliteexecutesql/flowsteward_test.go b/internal/tools/sqlite/sqliteexecutesql/flowsteward_test.go
+new file mode 100644
+index 0000000000..9aeca3b3ae
+--- /dev/null
++++ b/internal/tools/sqlite/sqliteexecutesql/flowsteward_test.go
+@@ -0,0 +1,88 @@
++// Copyright 2026 Flow Steward
++// Licensed under the Apache License, Version 2.0.
++package sqliteexecutesql
++
++import (
++	"context"
++	"database/sql"
++	"github.com/googleapis/mcp-toolbox/internal/sources"
++	"github.com/googleapis/mcp-toolbox/internal/testutils"
++	"github.com/googleapis/mcp-toolbox/internal/tools"
++	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
++	"reflect"
++	"testing"
++)
++
++type flowStewardSource struct {
++	sources.Source
++	sql    string
++	values []any
++	calls  int
++}
++
++func (*flowStewardSource) SQLiteDB() *sql.DB { return nil }
++
++func (s *flowStewardSource) RunSQL(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.values = values
++	s.calls++
++	return "ok", nil
++}
++func TestFlowStewardInvokeBoundValues(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "SELECT $1, $2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{value, value}
++	if source.sql != "SELECT $1, $2" || !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("driver received SQL=%q values=%#v; want separated bound values %#v", source.sql, source.values, want)
++	}
++	params[3].Value = "unsupported"
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err == nil {
++		t.Fatal("invalid binding reached driver")
++	}
++	if source.calls != 1 {
++		t.Fatalf("driver invoked %d times", source.calls)
++	}
++}
++
++func (s *flowStewardSource) RunWrite(ctx context.Context, statement string, values []any) (any, error) {
++	s.sql = statement
++	s.calls += 100
++	s.values = values
++	return "ok", nil
++}
++
++func TestFlowStewardInvokeWriteDispatch(t *testing.T) {
++	ctx, err := testutils.ContextWithNewLogger()
++	if err != nil {
++		t.Fatal(err)
++	}
++	tool, err := (Config{ConfigBase: tools.ConfigBase{Name: "bound", Description: "test"}}).Initialize(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	value := "x' OR 1=1 --"
++	params := parameters.ParamValues{{Name: "sql", Value: "UPDATE events SET event=$1 WHERE parent=$2"}, {Name: "params_json", Value: `{"event":"x' OR 1=1 --"}`}, {Name: "param_order", Value: []any{"event", "event"}}, {Name: "binding", Value: "write-positional"}}
++	source := &flowStewardSource{}
++	if _, err := tool.Invoke(ctx, source, params, tools.AccessToken("")); err != nil {
++		t.Fatal(err)
++	}
++	want := []any{value, value}
++	if !reflect.DeepEqual(source.values, want) {
++		t.Fatalf("write lost bound values: %#v", source.values)
++	}
++	if source.calls != 100 || source.sql != "UPDATE events SET event=$1 WHERE parent=$2" {
++		t.Fatalf("write did not use once-only driver: calls=%d SQL=%q", source.calls, source.sql)
++	}
++}
 diff --git a/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go b/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go
-index a1f6fec..4275884 100644
+index caf1661166..fdfbad4d39 100644
 --- a/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go
 +++ b/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go
-@@ -25,6 +25,7 @@ import (
+@@ -24,6 +24,7 @@ import (
  	"github.com/googleapis/mcp-toolbox/internal/sources"
  	"github.com/googleapis/mcp-toolbox/internal/tools"
  	"github.com/googleapis/mcp-toolbox/internal/util"
@@ -335,39 +1725,65 @@ index a1f6fec..4275884 100644
  	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
  )
  
-@@ -68,8 +69,7 @@ func (cfg Config) ToolConfigType() string {
- }
+@@ -66,8 +67,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
+ 		return nil, fmt.Errorf("description is required for tool %q", cfg.Name)
+ 	}
  
- func (cfg Config) Initialize(srcs map[string]sources.Source) (tools.Tool, error) {
 -	sqlParameter := parameters.NewStringParameter("sql", "The sql to execute.")
 -	params := parameters.Parameters{sqlParameter}
 +	params := flowstewardbinding.ToolParameters()
  
- 	// finish tool setup
- 	t := Tool{
-@@ -110,7 +110,15 @@ func (t Tool) Invoke(ctx context.Context, resourceMgr tools.SourceProvider, para
+ 	return Tool{
+ 		BaseTool: tools.NewBaseTool(
+@@ -107,22 +107,29 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
+ 	if !ok {
+ 		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, nil)
  	}
- 	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
- 
--	resp, err := source.RunSQL(ctx, sqlStr, nil)
+-	sqlStr, ok := params.AsMap()["sql"].(string)
+-	if !ok {
+-		return nil, util.NewAgentError("missing or invalid 'sql' parameter", nil)
++
 +	boundQuery, bindErr := flowstewardbinding.Parse(params)
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid bound query", bindErr)
-+	}
+ 	}
+-	if sqlStr == "" {
+-		return nil, util.NewAgentError("sql parameter cannot be empty", nil)
 +	driverParams, bindErr := boundQuery.Positional()
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid sqlite binding", bindErr)
-+	}
+ 	}
+-
+-	// Log the query executed for debugging.
+-	logger, err := util.LoggerFromContext(ctx)
+-	if err != nil {
+-		return nil, util.NewClientServerError("error getting logger", http.StatusInternalServerError, err)
++	if boundQuery.Write {
++		writer, ok := any(source).(interface {
++			RunWrite(context.Context, string, []any) (any, error)
++		})
++		if !ok {
++			return nil, util.NewAgentError("source does not support bound DML", nil)
++		}
++		result, err := writer.RunWrite(ctx, boundQuery.SQL, driverParams)
++		if err != nil {
++			return nil, util.ProcessGeneralError(err)
++		}
++		return result, nil
+ 	}
+-	logger.DebugContext(ctx, fmt.Sprintf("executing `%s` tool query: %s", resourceType, sqlStr))
+-
+-	resp, err := source.RunSQL(ctx, sqlStr, nil)
 +	resp, err := source.RunSQL(ctx, boundQuery.SQL, driverParams)
  	if err != nil {
  		return nil, util.ProcessGeneralError(err)
  	}
 diff --git a/internal/util/flowstewardbinding/binding.go b/internal/util/flowstewardbinding/binding.go
 new file mode 100644
-index 0000000..25f3233
+index 0000000000..65fcb803ab
 --- /dev/null
 +++ b/internal/util/flowstewardbinding/binding.go
-@@ -0,0 +1,148 @@
+@@ -0,0 +1,152 @@
 +// Copyright 2026 Flow Steward
 +// Licensed under the Apache License, Version 2.0.
 +
@@ -378,6 +1794,7 @@ index 0000000..25f3233
 +	"database/sql"
 +	"encoding/json"
 +	"fmt"
++	"strings"
 +
 +	"github.com/googleapis/mcp-toolbox/internal/util"
 +	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
@@ -392,6 +1809,7 @@ index 0000000..25f3233
 +)
 +
 +type BoundQuery struct {
++	Write      bool
 +	SQL        string
 +	Values     map[string]any
 +	ParamOrder []string
@@ -451,10 +1869,12 @@ index 0000000..25f3233
 +		order = append(order, name)
 +	}
 +	binding, ok := input["binding"].(string)
++	write := strings.HasPrefix(binding, "write-")
++	binding = strings.TrimPrefix(binding, "write-")
 +	if !ok || !supportedBinding(binding) {
 +		return BoundQuery{}, fmt.Errorf("unsupported binding strategy %q", binding)
 +	}
-+	return BoundQuery{SQL: statement, Values: params, ParamOrder: order, Binding: binding}, nil
++	return BoundQuery{Write: write, SQL: statement, Values: params, ParamOrder: order, Binding: binding}, nil
 +}
 +
 +func supportedBinding(binding string) bool {
@@ -518,10 +1938,10 @@ index 0000000..25f3233
 +}
 diff --git a/internal/util/flowstewardbinding/binding_test.go b/internal/util/flowstewardbinding/binding_test.go
 new file mode 100644
-index 0000000..2e44dc6
+index 0000000000..61eab7e90d
 --- /dev/null
 +++ b/internal/util/flowstewardbinding/binding_test.go
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,98 @@
 +// Copyright 2026 Flow Steward
 +// Licensed under the Apache License, Version 2.0.
 +
@@ -602,5 +2022,21 @@ index 0000000..2e44dc6
 +	})
 +	if err == nil {
 +		t.Fatal("Parse() unexpectedly accepted an unknown parameter")
++	}
++}
++
++func TestWriteBindingIsExplicitAndKeepsValuesSeparate(t *testing.T) {
++	q, err := Parse(parameters.ParamValues{
++		{Name: "sql", Value: "DELETE FROM products WHERE id = ?"},
++		{Name: "params_json", Value: `{"id":"x'; DROP TABLE products --"}`},
++		{Name: "param_order", Value: []any{"id"}},
++		{Name: "binding", Value: "write-positional"},
++	})
++	if err != nil || !q.Write || q.Binding != BindingPositional {
++		t.Fatalf("write binding rejected: %#v %v", q, err)
++	}
++	args, err := q.Positional()
++	if err != nil || len(args) != 1 || args[0] != "x'; DROP TABLE products --" || q.SQL != "DELETE FROM products WHERE id = ?" {
++		t.Fatalf("write binding modified values: %#v %v", q, err)
 +	}
 +}

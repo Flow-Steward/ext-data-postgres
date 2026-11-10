@@ -28,10 +28,10 @@ def main():
     for record in records.values():
         check_floors(record, baseline)
     data = {
-        "upstream_commit": "b0010060a939455d91e4f8ba62dc3e72b1892469",
-        "upstream_tag": "v1.3.0",
+        "upstream_commit": "06ea49d9a487a72c22419b5a8d5c22c11f0d7485",
+        "upstream_tag": "v1.16.0",
         "source": "https://github.com/googleapis/mcp-toolbox",
-        "go_image": "golang:1.26.10-bookworm@sha256:5de7c99eb78ca5e515a4c340235d0955ec5964a5071c492c15503d7c267da473",
+        "go_image": "golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0",
         "registered_prebuilts": (ROOT / "scripts/toolbox-prebuilts.txt").read_text().split(),
         "patch_sha256": digest(
             ROOT / "scripts/patches/0001-flowsteward-driver-bound-query-params.patch"
@@ -39,6 +39,8 @@ def main():
         "registered_packages": (ROOT / "packages.txt").read_text().splitlines(),
         "managed_vector_mode": True,
         "security_baseline": baseline,
+        "build_identities": json.loads((ROOT / "scripts/native-build-identities.json").read_text()),
+        "approved_profiles": json.loads((ROOT / "scripts/approved-profile-baseline.json").read_text()),
         "patches": {path.relative_to(ROOT).as_posix(): digest(path) for path in sorted((ROOT / "scripts/patches").glob("*.patch"))},
         "binaries": records,
     }

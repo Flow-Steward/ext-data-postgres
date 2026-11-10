@@ -369,6 +369,7 @@ def invoke(config, secrets, command, arguments, *, timeout_seconds):
                     "--config",
                     str(path),
                     "--stdio",
+                    "--disable-version-check",
                     "--disable-reload",
                     "--log-level",
                     "ERROR",
@@ -392,7 +393,7 @@ def invoke(config, secrets, command, arguments, *, timeout_seconds):
                             "capabilities": {},
                             "clientInfo": {
                                 "name": "flowsteward.data-connector-mcp-toolbox-postgres",
-                                "version": "1.4.1",
+                                "version": "1.4.3",
                             },
                         },
                     },

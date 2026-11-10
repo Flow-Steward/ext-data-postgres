@@ -876,7 +876,7 @@ def _sha256(path: Path) -> str:
 
 def _write_test_elf(path: Path, *, machine: int) -> str:
     # This verifier fixture needs real, framed Go metadata as well as ELF magic.
-    version = b"go1.26.10"
+    version = b"go1.27.3"
     modules = bytes.fromhex("3077af0c9274080241e1c107e6d618e6") + bytes.fromhex("f932433186182072008242104116d8f2")
     blob = b"\xff Go buildinf:" + bytes([8, 2]) + bytes(16)
     blob += bytes([len(version)]) + version + bytes([len(modules)]) + modules
@@ -911,9 +911,9 @@ def test_packaged_toolbox_artifacts_are_pinned_and_bounded() -> None:
     expected = {"linux-amd64": 62, "linux-arm64": 183}
 
     assert provenance["name"] == "MCP Toolbox for Databases"
-    assert provenance["version"] == "1.3.0"
-    assert provenance["tag"] == "v1.3.0"
-    assert provenance["commit"] == "b0010060a939455d91e4f8ba62dc3e72b1892469"
+    assert provenance["version"] == "1.16.0"
+    assert provenance["tag"] == "v1.16.0"
+    assert provenance["commit"] == "06ea49d9a487a72c22419b5a8d5c22c11f0d7485"
     assert provenance["source_url"] == "https://github.com/googleapis/mcp-toolbox"
     assert provenance["build"]["targets"] == sorted(expected)
     if VARIANT:
@@ -963,6 +963,7 @@ def test_packaged_toolbox_registers_every_declared_runtime_source(
             str(EXTENSION_ROOT / "bin" / target / "toolbox"),
             f"--prebuilt={runtime_prebuilt}",
             "--stdio",
+            "--disable-version-check",
         ],
         input=json.dumps(
             {
@@ -2106,3 +2107,21 @@ def test_logo_is_a_square_png_within_the_host_limits() -> None:
     assert width == height
     assert 32 <= width <= 512
     assert len(data) <= 100 * 1024
+
+
+def test_toolbox_launch_disables_startup_version_network_check(monkeypatch):
+    spec = importlib.util.spec_from_file_location("toolbox_launch_check", EXTENSION_ROOT / "main.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(module, "_validate_connection_credentials", lambda *args: None)
+    monkeypatch.setattr(module, "_runtime_prebuilt", lambda *args: "approved-profile")
+    monkeypatch.setattr(module, "_toolbox_command", lambda *args: ["/packaged/toolbox"])
+    monkeypatch.setattr(module, "_toolbox_env", lambda *args: {})
+    commands = []
+    def launch(argv, **kwargs):
+        commands.append(argv)
+        raise RuntimeError("captured launch")
+    monkeypatch.setattr(module.subprocess, "Popen", launch)
+    with pytest.raises(RuntimeError, match="captured launch"):
+        module._invoke_toolbox({}, {}, "query")
+    assert commands == [["/packaged/toolbox", "--prebuilt=approved-profile", "--stdio", "--disable-version-check"]]
