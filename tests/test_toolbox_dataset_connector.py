@@ -876,7 +876,7 @@ def _sha256(path: Path) -> str:
 
 def _write_test_elf(path: Path, *, machine: int) -> str:
     # This verifier fixture needs real, framed Go metadata as well as ELF magic.
-    version = b"go1.27.3"
+    version = b"go1.27.4"
     modules = bytes.fromhex("3077af0c9274080241e1c107e6d618e6") + bytes.fromhex("f932433186182072008242104116d8f2")
     blob = b"\xff Go buildinf:" + bytes([8, 2]) + bytes(16)
     blob += bytes([len(version)]) + version + bytes([len(modules)]) + modules

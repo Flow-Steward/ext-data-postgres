@@ -1,11 +1,14 @@
 {
   "toolbox_tag": "v1.16.0",
   "toolbox_commit": "06ea49d9a487a72c22419b5a8d5c22c11f0d7485",
-  "go_version": "go1.27.3",
+  "go_version": "go1.27.4",
   "go_image": "golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0",
   "go.mod": "f547c08375f72e483c269c214f1a5190a8d81237687455549f829aac5a8d7d51",
   "go.sum": "5c713561f5dce0e9c5c38977c925f54c94a4bec1095642cb6d04baaa612beacd",
   "module_patch_sha256": "958ad7a46b015c6520d1c60037c4e6fab41e756d417a618c612f08ac8806dfe7",
   "profile_patch_sha256": "df264c60006ad1a01812b427fb6a9593115ddd86227fc9522b8bae6731616aca",
-  "revision": 3
+  "revision": 3,
+  "go_image_role": "bootstrap",
+  "go_toolchain_installer_sha256": "a12d9761e28980bf808a29e2898dcb9511391c1b70c06014ad49cbadfc8733c6",
+  "go_toolchain_sources_sha256": "5008b838d6855cb0d67f3100ce18a4335be04ad3b36012fcc95036e998da997e"
 }

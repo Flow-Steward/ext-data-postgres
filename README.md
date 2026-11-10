@@ -1,6 +1,6 @@
 # PostgreSQL
 
-Standalone Flow Steward extension, version 1.4.3. Install only this database package. The extension identifier remains `flowsteward.data-connector-mcp-toolbox-postgres` for installed upgrades.
+Standalone Flow Steward extension, version 1.4.4. Install only this database package. The extension identifier remains `flowsteward.data-connector-mcp-toolbox-postgres` for installed upgrades.
 
 Supports profiles: `postgres`, `alloydb-omni`, `alloydb-postgres`, `cloud-sql-postgres`. Read-only datasets support schema inspection, validation, bounded previews and saved-query execution. Workflows support one bound INSERT, UPDATE or DELETE, with project connection references and durable effect claims. No triggers are exposed. Public SQL writes reject DDL; fixed vector actions can create or drop their collection schema objects.
 

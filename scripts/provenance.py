@@ -27,11 +27,25 @@ def main():
     baseline = json.loads((ROOT / "scripts/native-security-baseline.json").read_text())
     for record in records.values():
         check_floors(record, baseline)
+    sdk_sources = json.loads((ROOT / "scripts/go-toolchain-sources.json").read_text())
+    selected_sdk = json.loads((ROOT / "scripts/go-toolchain-selected.json").read_text())
+    expected_sdk = sdk_sources["archives"][selected_sdk["host_arch"]]
+    if selected_sdk["version"] != sdk_sources["version"] or any(
+        selected_sdk[key] != expected_sdk[key] for key in ("url", "sha256")
+    ):
+        raise ValueError("selected SDK does not match the verified official source")
     data = {
         "upstream_commit": "06ea49d9a487a72c22419b5a8d5c22c11f0d7485",
         "upstream_tag": "v1.16.0",
         "source": "https://github.com/googleapis/mcp-toolbox",
         "go_image": "golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0",
+        "go_image_role": "bootstrap",
+        "go_toolchain_install": {
+            "helper_path": "scripts/install-go-toolchain.sh",
+            "helper_sha256": digest(ROOT / "scripts/install-go-toolchain.sh"),
+            "sources": sdk_sources,
+            "selected_sdk": selected_sdk,
+        },
         "registered_prebuilts": (ROOT / "scripts/toolbox-prebuilts.txt").read_text().split(),
         "patch_sha256": digest(
             ROOT / "scripts/patches/0001-flowsteward-driver-bound-query-params.patch"

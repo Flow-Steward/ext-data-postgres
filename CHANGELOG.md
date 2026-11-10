@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.4
+
+- Rebuild with checksum-verified official Go 1.27.4 SDK security fixes. The pinned Go 1.27.3 image supplies only the bootstrap environment; Toolbox source, all 106 module pins and safety patches remain unchanged.
+
 ## 1.4.3
 
 - Upgrade pinned Toolbox to v1.16.0, Go 1.27.3 and the reviewed dependency baseline. Port bound SQL and native safety checks to current driver interfaces while retaining approved connection profiles.

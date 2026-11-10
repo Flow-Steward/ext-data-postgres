@@ -4,7 +4,7 @@ lifecycle:
   data_migrations: []
 extension_id: flowsteward.data-connector-mcp-toolbox-postgres
 kind: tool_provider
-version: 1.4.3
+version: 1.4.4
 release_stage: active
 display_name: PostgreSQL
 description: PostgreSQL dataset reads, parameterized SQL writes, and pgvector collections, document chunks

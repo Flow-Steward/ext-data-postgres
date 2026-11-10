@@ -393,7 +393,7 @@ def invoke(config, secrets, command, arguments, *, timeout_seconds):
                             "capabilities": {},
                             "clientInfo": {
                                 "name": "flowsteward.data-connector-mcp-toolbox-postgres",
-                                "version": "1.4.3",
+                                "version": "1.4.4",
                             },
                         },
                     },
