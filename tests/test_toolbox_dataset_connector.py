@@ -875,13 +875,34 @@ def _sha256(path: Path) -> str:
 
 
 def _write_test_elf(path: Path, *, machine: int) -> str:
-    payload = bytearray(20)
-    payload[:4] = b"\x7fELF"
-    payload[18:20] = machine.to_bytes(2, "little")
+    # This verifier fixture needs real, framed Go metadata as well as ELF magic.
+    version = b"go1.26.10"
+    modules = bytes.fromhex("3077af0c9274080241e1c107e6d618e6") + bytes.fromhex("f932433186182072008242104116d8f2")
+    blob = b"\xff Go buildinf:" + bytes([8, 2]) + bytes(16)
+    blob += bytes([len(version)]) + version + bytes([len(modules)]) + modules
+    payload = bytearray(256)
+    payload[:16] = b"\x7fELF\x02\x01\x01" + bytes(9)
+    struct.pack_into("<HHIQQQIHHHHHH", payload, 16, 2, machine, 1, 0, 64, 128, 0, 64, 56, 1, 64, 2, 0)
+    struct.pack_into("<IIQQQQQQ", payload, 64, 1, 6, 256, 4096, 4096, len(blob), len(blob), 16)
+    struct.pack_into("<IIQQQQIIQQ", payload, 192, 0, 1, 3, 4096, 256, len(blob), 0, 0, 16, 0)
+    payload.extend(blob)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(payload)
     path.chmod(0o755)
-    return hashlib.sha256(payload).hexdigest()
+    checksum = hashlib.sha256(payload).hexdigest()
+    fixture_root = path.parents[2]
+    (fixture_root / "scripts").mkdir(exist_ok=True)
+    (fixture_root / "scripts/native-security-baseline.json").write_bytes(
+        (EXTENSION_ROOT / "scripts/native-security-baseline.json").read_bytes()
+    )
+    provenance_path = fixture_root / "toolbox-provenance.json"
+    provenance = json.loads(provenance_path.read_text()) if provenance_path.exists() else {"binaries": {}}
+    provenance["binaries"][path.parent.name] = {
+        "go_version": version.decode(), "modules": {}, "module_gaps": [], "module_replacements": {},
+        "sha256": checksum, "size": len(payload),
+    }
+    provenance_path.write_text(json.dumps(provenance))
+    return checksum
 
 
 @pytest.mark.packaged

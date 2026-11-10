@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import stat
@@ -14,7 +15,7 @@ import zipfile
 from pathlib import Path
 
 EXTENSION_ID = "flowsteward.data-connector-mcp-toolbox-postgres"
-VERSION = "1.4.1"
+VERSION = "1.4.2"
 TOP_FOLDER = "flowsteward_data_connector_mcp_toolbox_postgres"
 SOURCE_DATE_EPOCH = 1779400183
 MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
@@ -104,7 +105,22 @@ def _native_metadata(root: Path, target: str) -> dict[str, str]:
         raise ValueError("Provenance must not be a symlink")
     provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
     record = provenance["binaries"][target]
-    digest = sha256(binary)
+    # Packaging is a release boundary: validate actual linked metadata here,
+    # even when an old payload has internally consistent hashes/provenance.
+    spec = importlib.util.spec_from_file_location(
+        "package_native_security", Path(__file__).with_name("native_security.py")
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError("Native security verifier is unavailable")
+    security = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(security)
+    actual = security.inspect_binary(binary)
+    baseline = json.loads((root / "scripts/native-security-baseline.json").read_text())
+    security.check_floors(actual, baseline)
+    for key in ("go_version", "modules", "module_gaps", "module_replacements", "sha256", "size"):
+        if record.get(key) != actual[key]:
+            raise ValueError(f"Native executable {key} does not match provenance")
+    digest = actual["sha256"]
     if record.get("sha256") != digest or record.get("size") != binary.stat().st_size:
         raise ValueError("Native executable SHA-256 or size does not match provenance")
     return {"path": f"bin/{target}/toolbox", "sha256": digest}

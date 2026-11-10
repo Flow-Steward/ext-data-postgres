@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2
+
+- Rebuild pinned Toolbox v1.3.0 with Go 1.26.10 and security dependency floors, preserving database safety patches and host behavior.
+
 ## 1.4.1
 
 - Use the original official provider artwork in the catalog and extension icon. Runtime behavior is unchanged.

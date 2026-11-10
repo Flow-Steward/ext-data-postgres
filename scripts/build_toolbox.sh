@@ -15,12 +15,13 @@ test "$#" = 0 || { echo "This build accepts no database selector" >&2; exit 2; }
 VARIANT=postgres
 TOOLBOX_TAG=v1.3.0
 TOOLBOX_COMMIT=b0010060a939455d91e4f8ba62dc3e72b1892469
-GO_IMAGE=golang:1.26.2-bookworm@sha256:47ce5636e9936b2c5cbf708925578ef386b4f8872aec74a67bd13a627d242b19
+GO_IMAGE=golang:1.26.10-bookworm@sha256:5de7c99eb78ca5e515a4c340235d0955ec5964a5071c492c15503d7c267da473
 PATCH=scripts/patches/0001-flowsteward-driver-bound-query-params.patch
+SECURITY_PATCH=scripts/patches/0003-flowsteward-security-dependencies.patch
 VECTOR_PATCH=scripts/patches/0002-flowsteward-managed-vector-safety.patch
 BUILD_NAME=${FS_POSTGRES_BUILD_NAME:-fs-postgres-native-build-$$}
-GO_CACHE=${FS_POSTGRES_GO_CACHE:-flow-steward-postgres-go-cache}
-BUILD_CACHE=${FS_POSTGRES_BUILD_CACHE:-flow-steward-postgres-build-cache}
+GO_CACHE=${FS_POSTGRES_GO_CACHE:-flow-steward-db-batch-go-cache}
+BUILD_CACHE=${FS_POSTGRES_BUILD_CACHE:-flow-steward-db-batch-build-cache}
 # Fixed connection profiles for this database (MariaDB uses the MySQL protocol).
 test -f "$ROOT/scripts/toolbox-prebuilts.txt" \
   || { echo "[FAIL] missing locked profile list" >&2; exit 2; }
@@ -38,6 +39,7 @@ docker run --rm --pull=never --name "$BUILD_NAME" --cpus=1 --memory=2g \
   --label flow-steward.owner=ext-data-postgres-native-build \
   -v "$GO_CACHE:/go/pkg/mod" -v "$BUILD_CACHE:/root/.cache/go-build" \
   -e TOOLBOX_TAG="$TOOLBOX_TAG" -e TOOLBOX_COMMIT="$TOOLBOX_COMMIT" -e PATCH="$PATCH" -e VECTOR_PATCH="$VECTOR_PATCH" \
+  -e SECURITY_PATCH="$SECURITY_PATCH" -e GOTOOLCHAIN=local -e GOFLAGS=-mod=readonly \
   -e PREBUILTS="$PREBUILTS" -e VARIANT="$VARIANT" \
   -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   -v "$ROOT:/out" "$@" "$GO_IMAGE" sh -c '
@@ -52,10 +54,14 @@ docker run --rm --pull=never --name "$BUILD_NAME" --cpus=1 --memory=2g \
     git config --global --add safe.directory /src
     test "$(git -C /src rev-parse HEAD)" = "$TOOLBOX_COMMIT"
     cd /src
+    git apply --check "/out/$SECURITY_PATCH"
+    git apply "/out/$SECURITY_PATCH"
+    sha256sum go.mod go.sum > /tmp/locked-modules.sha256
+    git apply --check "/out/$PATCH"
     git apply "/out/$PATCH"
     # Observe the native regression before applying the implementation patch.
     git apply --include=internal/sources/postgres/flowsteward_test.go "/out/$VECTOR_PATCH"
-    if go test -p 1 ./internal/sources/postgres -run TestFlowSteward > /tmp/vector-red.log 2>&1; then
+    if go test -mod=readonly -p 1 ./internal/sources/postgres -run TestFlowSteward > /tmp/vector-red.log 2>&1; then
       cat /tmp/vector-red.log
       echo "[FAIL] vector safety regression unexpectedly passed before the patch" >&2
       exit 2
@@ -92,13 +98,13 @@ docker run --rm --pull=never --name "$BUILD_NAME" --cpus=1 --memory=2g \
     echo "[PASS] $VARIANT: $(wc -l < /tmp/types) types from $(wc -l < /tmp/packages) packages for: $PREBUILTS"
     cp /tmp/packages "/out/packages.txt"
 
-    go test -p 1 ./internal/util/flowstewardbinding
-    go test -p 1 ./internal/sources/postgres -run "TestBuildPostgresURL|TestParseQueryExecMode|TestFlowSteward"
+    go test -mod=readonly -p 1 ./internal/util/flowstewardbinding
+    go test -mod=readonly -p 1 ./internal/sources/postgres -run "TestBuildPostgresURL|TestParseQueryExecMode|TestFlowSteward"
     export SOURCE_DATE_EPOCH=1779400183
     for target in linux-amd64 linux-arm64; do
       arch=${target#linux-}
       mkdir -p "/out/bin/$target"
-      CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -p 1 -trimpath -buildvcs=false \
+      CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -mod=readonly -p 1 -trimpath -buildvcs=false \
         -ldflags "-s -w -buildid= -X github.com/googleapis/mcp-toolbox/cmd.buildType=flowsteward.dataset-connectors -X github.com/googleapis/mcp-toolbox/cmd.commitSha=$TOOLBOX_COMMIT" \
         -o "/out/bin/$target/toolbox" .
       chmod 0755 "/out/bin/$target/toolbox"
@@ -107,7 +113,8 @@ docker run --rm --pull=never --name "$BUILD_NAME" --cpus=1 --memory=2g \
     echo "[RESOURCE] cgroup memory.peak: $(cat /sys/fs/cgroup/memory.peak) bytes"
     echo "[RESOURCE] cgroup memory.events:"
     cat /sys/fs/cgroup/memory.events
-    chown -R "$HOST_UID:$HOST_GID" "/out"
+    sha256sum -c /tmp/locked-modules.sha256
+    chown -R "$HOST_UID:$HOST_GID" "/out/bin" "/out/packages.txt"
   '
 
 python3 "$ROOT/scripts/provenance.py"

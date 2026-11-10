@@ -5,8 +5,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
+from native_security import inspect_binary, check_floors
 import os
 import sys
+import struct
 from pathlib import Path
 
 MAX_BINARY_BYTES = 150 * 1024 * 1024
@@ -113,6 +116,17 @@ def main() -> int:
             failures.append(f"artifact is not executable: {relative}")
         if path.stat().st_size >= MAX_BINARY_BYTES:
             failures.append(f"artifact exceeds {MAX_BINARY_BYTES} bytes: {relative}")
+        try:
+            record = inspect_binary(path)
+            baseline = json.loads((root / "scripts/native-security-baseline.json").read_text())
+            check_floors(record, baseline)
+            provenance = json.loads((root / "toolbox-provenance.json").read_text())
+            actual = provenance["binaries"][relative.split("/")[1]]
+            for key in ("go_version", "modules", "module_gaps", "module_replacements", "sha256", "size"):
+                if actual.get(key) != record[key]:
+                    failures.append(f"provenance {key} differs from binary: {relative}")
+        except (ValueError, OSError, KeyError, struct.error) as exc:
+            failures.append(f"native security metadata: {relative}: {exc}")
         if _sha256(path) != checksum:
             failures.append(f"checksum mismatch: {relative}")
     if failures:
