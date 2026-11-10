@@ -45,7 +45,7 @@ def test_managed_config_pins_address_preserves_tls_hostname_and_no_env_expansion
     assert command["statement"] == "SELECT $1" and "readOnly" not in command
 
 
-def test_blocking_endpoint_resolution_respects_remaining_deadline(monkeypatch, tmp_path):
+def test_blocking_endpoint_resolution_respects_remaining_deadline(monkeypatch):
     """A stalled synchronous resolver cannot outlive the action or launch Toolbox."""
     import ctypes
     import errno
@@ -67,7 +67,19 @@ def test_blocking_endpoint_resolution_respects_remaining_deadline(monkeypatch, t
         }
     )
     launches = []
-    resolver_pid = tmp_path / "resolver.pid"
+    # Capture the PID in the parent. Under load a correctly cancelled child can
+    # be killed before it reaches a child-written marker or the native wait.
+    # Reaping still must be verified for that child within the same 50 ms budget.
+    forked = []
+    original_fork = os.fork
+
+    def observed_fork():
+        pid = original_fork()
+        if pid > 0:
+            forked.append(pid)
+        return pid
+
+    monkeypatch.setattr(os, "fork", observed_fork)
 
     def blocking_resolver(*args, **kwargs):
         # This wait stays inside libc despite signal delivery, unlike Python sleep.
@@ -99,7 +111,6 @@ def test_blocking_endpoint_resolution_respects_remaining_deadline(monkeypatch, t
         assert libc.pthread_mutex_init(mutex, None) == 0
         assert libc.pthread_cond_init(condition, None) == 0
         assert libc.pthread_mutex_lock(mutex) == 0
-        resolver_pid.write_text(str(os.getpid()))
         until = time.time() + 0.6
         absolute = Timespec(int(until), int((until % 1) * 1_000_000_000))
         try:
@@ -136,7 +147,8 @@ def test_blocking_endpoint_resolution_respects_remaining_deadline(monkeypatch, t
     assert failure.value.code == "timeout"
     assert failure.value.dispatched is False
     assert elapsed < 0.4
-    child_pid = int(resolver_pid.read_text())
+    assert len(forked) == 1
+    child_pid = forked[0]
     assert child_pid != os.getpid()
     with pytest.raises(ChildProcessError):
         os.waitpid(child_pid, os.WNOHANG)
