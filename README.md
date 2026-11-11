@@ -1,6 +1,6 @@
 # PostgreSQL
 
-Flow Steward extension `flowsteward.data-connector-mcp-toolbox-postgres`, version **1.4.5**.
+Flow Steward extension `flowsteward.data-connector-mcp-toolbox-postgres`, version **1.4.6**.
 
 Bring PostgreSQL data and vector retrieval into the same Flow Steward project connection. The read-only Dataset connector tests connections, inspects schemas, validates saved SQL, previews results and executes saved queries. SQL profiles cover direct PostgreSQL, AlloyDB Omni, AlloyDB for PostgreSQL and Cloud SQL for PostgreSQL. Workflow steps separately run one parameterized INSERT, UPDATE or DELETE, for example to record a completed approval or update an application record after processing.
 
@@ -39,3 +39,31 @@ Vector writes require the host's durable `external_effect_id` claim and are supp
 Vector input is capped at 256 KiB and inline result JSON at 480 KiB. Managed vector source instances additionally bound native results to 100 rows/480 KiB, PostgreSQL message bodies to 512 KiB and connection reads to 2 MiB. Ordinary SQL/dataset sources retain their existing host-approved row limits. Values remain driver-bound, SQL identifiers follow a closed ASCII grammar, and fixed internal vector DDL does not widen the public SQL guard.
 
 AMD64 and ARM64 archives each contain exactly one native executable serving both SQL and vectors. See `toolbox-provenance.json` for the combined native patches and hashes, and [BRAND-ASSETS.md](BRAND-ASSETS.md) for logo provenance.
+
+## Automated releases
+
+CI runs on pull requests and pushes to `main`. Official releases run through the
+pinned shared GitHub Actions workflow using `.github/release-config.json` to test,
+package both Linux runtime targets, and publish the release assets automatically.
+Manual ZIP uploads are not part of the release process.
+
+After merging the version **1.4.6** update into `main`, create and push its tag:
+
+```sh
+git switch main
+git pull --ff-only
+git tag -a v1.4.6 -m "Release v1.4.6"
+git push origin v1.4.6
+```
+
+To rerun the workflow for an existing tag without moving it:
+
+```sh
+gh workflow run release.yml --ref main -f tag=v1.4.6
+```
+
+The manifest remains the source for release identity and catalog descriptions.
+The shared workflow installs the verified first-party SDK wheel before test
+dependencies. Where native payloads are absent from source, the recipe restores
+only the listed missing files from checksum-pinned published archives; the source
+packager still verifies their provenance before packaging.

@@ -351,7 +351,7 @@ def _invoke_toolbox(
                 "params": {
                     "protocolVersion": "2025-06-18",
                     "capabilities": {},
-                    "clientInfo": {"name": EXTENSION_ID, "version": "1.4.5"},
+                    "clientInfo": {"name": EXTENSION_ID, "version": "1.4.6"},
                 },
             },
         )
