@@ -498,13 +498,16 @@ def test_row_cap_ignores_limit_inside_literals_and_trailing_comments(monkeypatch
 
 
 @offered("postgres")
-def test_toolbox_dataset_connector_smoke_check() -> None:
+def test_toolbox_dataset_connector_smoke_check(tmp_path: Path) -> None:
+    env = toolbox_env()
+    env.pop("PYTHONPATH", None)
     completed = subprocess.run(  # nosemgrep: fixed Python executable and extension smoke script path. # nosec B603
         [sys.executable, str(EXTENSION_ROOT / "scripts" / "smoke_check.py")],
         text=True,
         capture_output=True,
         check=False,
-        env=toolbox_env(),
+        cwd=tmp_path,
+        env=env,
     )
 
     assert completed.returncode == 0, completed.stderr or completed.stdout
