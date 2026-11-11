@@ -1,6 +1,14 @@
 # PostgreSQL
 
-Standalone Flow Steward extension, version 1.4.4. Install only this database package. The extension identifier remains `flowsteward.data-connector-mcp-toolbox-postgres` for installed upgrades.
+Flow Steward extension `flowsteward.data-connector-mcp-toolbox-postgres`, version **1.4.5**.
+
+Bring PostgreSQL data and vector retrieval into the same Flow Steward project connection. The read-only Dataset connector tests connections, inspects schemas, validates saved SQL, previews results and executes saved queries. SQL profiles cover direct PostgreSQL, AlloyDB Omni, AlloyDB for PostgreSQL and Cloud SQL for PostgreSQL. Workflow steps separately run one parameterized INSERT, UPDATE or DELETE, for example to record a completed approval or update an application record after processing.
+
+For direct PostgreSQL connections, pgvector actions create, inspect and explicitly drop collections; insert, retrieve, update or delete individual chunks; upsert documents; and delete documents. Similarity search supports cosine, L2 or inner product, metadata containment filters, minimum scores and optional returned vectors. Use these operations to store externally generated embeddings alongside document content, then retrieve related chunks for a later answer step.
+
+A database administrator must install pgvector before using vector actions, which do not run through the managed cloud profiles. Collections support up to 2,000 dimensions and searches up to 100 matches. A document upsert updates the supplied chunks; removing omitted chunks requires explicit deletion. Embedding generation and database triggers are outside this extension.
+
+Choose a direct PostgreSQL or supported AlloyDB/Cloud SQL profile and configure its connection fields and credentials; direct PostgreSQL requires a password. For vectors, use the direct postgres profile with administrator-installed pgvector in public, plus schema, TLS and timeout settings as needed.
 
 Supports profiles: `postgres`, `alloydb-omni`, `alloydb-postgres`, `cloud-sql-postgres`. Read-only datasets support schema inspection, validation, bounded previews and saved-query execution. Workflows support one bound INSERT, UPDATE or DELETE, with project connection references and durable effect claims. No triggers are exposed. Public SQL writes reject DDL; fixed vector actions can create or drop their collection schema objects.
 

@@ -4,11 +4,15 @@ lifecycle:
   data_migrations: []
 extension_id: flowsteward.data-connector-mcp-toolbox-postgres
 kind: tool_provider
-version: 1.4.4
+version: "1.4.5"
 release_stage: active
 display_name: PostgreSQL
-description: PostgreSQL dataset reads, parameterized SQL writes, and pgvector collections, document chunks
-  and similarity search.
+description: |-
+  Bring PostgreSQL data and vector retrieval into the same Flow Steward project connection. The read-only Dataset connector tests connections, inspects schemas, validates saved SQL, previews results and executes saved queries. SQL profiles cover direct PostgreSQL, AlloyDB Omni, AlloyDB for PostgreSQL and Cloud SQL for PostgreSQL. Workflow steps separately run one parameterized INSERT, UPDATE or DELETE, for example to record a completed approval or update an application record after processing.
+
+  For direct PostgreSQL connections, pgvector actions create, inspect and explicitly drop collections; insert, retrieve, update or delete individual chunks; upsert documents; and delete documents. Similarity search supports cosine, L2 or inner product, metadata containment filters, minimum scores and optional returned vectors. Use these operations to store externally generated embeddings alongside document content, then retrieve related chunks for a later answer step.
+
+  A database administrator must install pgvector before using vector actions, which do not run through the managed cloud profiles. Collections support up to 2,000 dimensions and searches up to 100 matches. A document upsert updates the supplied chunks; removing omitted chunks requires explicit deletion. Embedding generation and database triggers are outside this extension.
 vendor:
   name: Flow Steward
   support_url: https://github.com/Flow-Steward/ext-data-postgres/issues
@@ -22,10 +26,14 @@ listing:
   - dataset
   - pgvector
   - vector
-  summary: PostgreSQL dataset reads, parameterized SQL writes, and pgvector collections, document chunks
-    and similarity search.
-  description: Connect PostgreSQL datasets, inspect schemas, run saved read queries and workflow INSERT/UPDATE/DELETE,
-    and store or search dense vectors using the same project connection.
+  summary: "Use PostgreSQL datasets and SQL writes, plus pgvector collections, document chunks and similarity search."
+  description: |-
+    Bring PostgreSQL data and vector retrieval into the same Flow Steward project connection. The read-only Dataset connector tests connections, inspects schemas, validates saved SQL, previews results and executes saved queries. SQL profiles cover direct PostgreSQL, AlloyDB Omni, AlloyDB for PostgreSQL and Cloud SQL for PostgreSQL. Workflow steps separately run one parameterized INSERT, UPDATE or DELETE, for example to record a completed approval or update an application record after processing.
+
+    For direct PostgreSQL connections, pgvector actions create, inspect and explicitly drop collections; insert, retrieve, update or delete individual chunks; upsert documents; and delete documents. Similarity search supports cosine, L2 or inner product, metadata containment filters, minimum scores and optional returned vectors. Use these operations to store externally generated embeddings alongside document content, then retrieve related chunks for a later answer step.
+
+    A database administrator must install pgvector before using vector actions, which do not run through the managed cloud profiles. Collections support up to 2,000 dimensions and searches up to 100 matches. A document upsert updates the supplied chunks; removing omitted chunks requires explicit deletion. Embedding generation and database triggers are outside this extension.
+  setup_summary: "Choose a direct PostgreSQL or supported AlloyDB/Cloud SQL profile and configure its connection fields and credentials; direct PostgreSQL requires a password. For vectors, use the direct postgres profile with administrator-installed pgvector in public, plus schema, TLS and timeout settings as needed."
 package:
   format: flow-steward-extension
   license: Apache-2.0
