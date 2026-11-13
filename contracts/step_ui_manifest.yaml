@@ -1,278 +1,376 @@
 {
   "forms": [
     {
+      "operation_id": "execute_write",
+      "title": "SQL: Insert, update or delete rows",
+      "fields": [
+        {
+          "name": "sql",
+          "widget_type": "textarea",
+          "required": true,
+          "label": "SQL write statement",
+          "help_text": "Enter one INSERT, UPDATE or DELETE. Bind values with :named placeholders and supply their values in Parameters. INSERT ... ON CONFLICT DO UPDATE supports upserts. Use a Dataset saved query for SELECT reads. Test mode validates this action without writing.",
+          "placeholder": "UPDATE orders SET status = :status WHERE order_id = :order_id"
+        },
+        {
+          "name": "params",
+          "widget_type": "json",
+          "required": false,
+          "label": "Parameters (JSON)",
+          "help_text": "Object containing a value for every :named placeholder in the SQL statement. Bind workflow values here rather than inserting them into the SQL text. Example: status and order_id for the statement above.",
+          "placeholder": "{\"status\":\"approved\",\"order_id\":1042}"
+        },
+        {
+          "name": "param_schema",
+          "widget_type": "json",
+          "required": false,
+          "label": "Parameter types (JSON Schema)",
+          "help_text": "Declare a type for every :named SQL placeholder in properties, matching the Parameters object. Required when SQL uses parameters; omit only for SQL without placeholders. Supported types: string, integer, number, boolean and null.",
+          "placeholder": "{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\"},\"order_id\":{\"type\":\"integer\"}},\"required\":[\"status\",\"order_id\"]}"
+        }
+      ]
+    },
+    {
       "operation_id": "ensure_collection",
-      "title": "Ensure Collection",
+      "title": "Vector: Create or check a collection",
       "fields": [
         {
           "name": "collection",
           "widget_type": "textarea",
-          "label": "Collection",
-          "required": true
+          "label": "Vector collection name",
+          "required": true,
+          "help_text": "Name of the collection table in the connection schema (fs_vectors by default). Use letters, digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or check a collection before saving or searching.",
+          "placeholder": "knowledge_base"
         },
         {
           "name": "dimensions",
           "widget_type": "number",
-          "label": "Dimensions",
-          "required": true
+          "label": "Embedding dimensions",
+          "required": true,
+          "help_text": "Number of values in each embedding: 1 to 2000. Match your embedding model exactly; for example, use 1536 only when the model returns 1536 values. An existing collection must have the same dimensions.",
+          "placeholder": "1536"
         },
         {
           "name": "metric",
           "widget_type": "textarea",
-          "label": "Metric",
-          "required": false
+          "label": "Similarity metric",
+          "required": false,
+          "help_text": "Use cosine (default), l2 or inner_product. Keep the same metric for the collection throughout ingestion and search. An existing collection must match this value.",
+          "placeholder": "cosine"
         }
       ]
     },
     {
       "operation_id": "get_collection",
-      "title": "Get Collection",
+      "title": "Vector: Inspect a collection",
       "fields": [
         {
           "name": "collection",
           "widget_type": "textarea",
-          "label": "Collection",
-          "required": true
+          "label": "Vector collection name",
+          "required": true,
+          "help_text": "Name of the collection table in the connection schema (fs_vectors by default). Use letters, digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or check a collection before saving or searching.",
+          "placeholder": "knowledge_base"
         }
       ]
     },
     {
       "operation_id": "drop_collection",
-      "title": "Drop Collection",
+      "title": "Vector: Delete a collection and all its text",
       "fields": [
         {
           "name": "collection",
           "widget_type": "textarea",
-          "label": "Collection",
-          "required": true
+          "label": "Vector collection name",
+          "required": true,
+          "help_text": "Name of the collection table in the connection schema (fs_vectors by default). Use letters, digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or check a collection before saving or searching.",
+          "placeholder": "knowledge_base"
         },
         {
           "name": "confirm",
           "widget_type": "boolean",
-          "label": "Confirm",
-          "required": true
+          "label": "Confirm deletion of the collection and all fragments",
+          "required": true,
+          "help_text": "Enable explicitly to delete the collection table, its indexes and all stored text. Leave disabled unless you intend to remove the entire collection."
         }
       ]
     },
     {
       "operation_id": "upsert_chunk",
-      "title": "Upsert Chunk",
+      "title": "Vector: Save text fragment and embedding",
       "fields": [
         {
           "name": "chunk_id",
           "widget_type": "textarea",
-          "label": "Chunk Id",
-          "required": true
+          "label": "Fragment ID",
+          "required": true,
+          "help_text": "Stable identifier of one text fragment, unique within the collection. Example: manual_42_part_1. Reusing it in Save text fragment replaces the stored fragment, even if a different Document ID is supplied.",
+          "placeholder": "manual_42_part_1"
         },
         {
           "name": "collection",
           "widget_type": "textarea",
-          "label": "Collection",
-          "required": true
+          "label": "Vector collection name",
+          "required": true,
+          "help_text": "Name of the collection table in the connection schema (fs_vectors by default). Use letters, digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or check a collection before saving or searching.",
+          "placeholder": "knowledge_base"
         },
         {
           "name": "content",
           "widget_type": "textarea",
-          "label": "Content",
-          "required": false
+          "label": "Fragment text",
+          "required": false,
+          "help_text": "Text to store or replace for this fragment, for example a paragraph from a manual. Generate a new embedding when changing its meaning; the action does not generate embeddings.",
+          "placeholder": "Refund requests can be submitted within 30 days."
         },
         {
           "name": "document_id",
           "widget_type": "textarea",
-          "label": "Document Id",
-          "required": true
+          "label": "Document ID",
+          "required": true,
+          "help_text": "Identifier shared by all fragments of one document, for example manual_42. Use the same ID to save its fragments and later remove them together.",
+          "placeholder": "manual_42"
         },
         {
           "name": "metadata",
           "widget_type": "json",
-          "label": "Metadata",
-          "required": false
+          "label": "Fragment metadata (JSON)",
+          "required": false,
+          "help_text": "Optional JSON object used for filtering or context, for example language and category. The supplied object replaces the existing metadata; it is not merged.",
+          "placeholder": "{\"language\":\"en\",\"category\":\"refunds\"}"
         },
         {
           "name": "source",
           "widget_type": "json",
-          "label": "Source",
-          "required": false
+          "label": "Document source (JSON)",
+          "required": false,
+          "help_text": "Optional JSON object returned with search results, for example a document URL or title. The supplied object replaces the existing source; it is not merged.",
+          "placeholder": "{\"url\":\"https://example.com/manual\",\"title\":\"Customer manual\"}"
         },
         {
           "name": "vector",
           "widget_type": "json",
-          "label": "Vector",
-          "required": true
+          "label": "Embedding vector (JSON array)",
+          "required": true,
+          "help_text": "Numeric embedding from an earlier embedding-generation step. Use the same model and exact number of dimensions as the collection. [0.1,0.2,0.3] is an illustration for a 3-dimensional collection, not a replacement for a real model output.",
+          "placeholder": "[0.1,0.2,0.3]"
         }
       ]
     },
     {
       "operation_id": "upsert_document",
-      "title": "Upsert Document",
+      "title": "Vector: Save document fragments and embeddings",
       "fields": [
         {
           "name": "chunks",
           "widget_type": "json",
-          "label": "Chunks",
-          "required": true
+          "label": "Document fragments (JSON array)",
+          "required": true,
+          "help_text": "Provide 1 to 100 objects. Each needs a unique chunk_id and vector; content and metadata are optional. Generate vectors before this step and match the collection dimensions. Omitted existing fragments are preserved. The example uses illustrative 3-dimensional vectors.",
+          "placeholder": "[{\"chunk_id\":\"manual_42_part_1\",\"content\":\"Refunds within 30 days.\",\"vector\":[0.1,0.2,0.3],\"metadata\":{\"language\":\"en\"}}]"
         },
         {
           "name": "collection",
           "widget_type": "textarea",
-          "label": "Collection",
-          "required": true
+          "label": "Vector collection name",
+          "required": true,
+          "help_text": "Name of the collection table in the connection schema (fs_vectors by default). Use letters, digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or check a collection before saving or searching.",
+          "placeholder": "knowledge_base"
         },
         {
           "name": "document_id",
           "widget_type": "textarea",
-          "label": "Document Id",
-          "required": true
+          "label": "Document ID",
+          "required": true,
+          "help_text": "Identifier shared by all fragments of one document, for example manual_42. Use the same ID to save its fragments and later remove them together.",
+          "placeholder": "manual_42"
         },
         {
           "name": "source",
           "widget_type": "json",
-          "label": "Source",
-          "required": false
+          "label": "Document source (JSON)",
+          "required": false,
+          "help_text": "Optional JSON object returned with search results, for example a document URL or title. The supplied object replaces the existing source; it is not merged.",
+          "placeholder": "{\"url\":\"https://example.com/manual\",\"title\":\"Customer manual\"}"
         }
       ]
     },
     {
       "operation_id": "get_chunk",
-      "title": "Get Chunk",
+      "title": "Vector: Read a saved text fragment",
       "fields": [
         {
           "name": "chunk_id",
           "widget_type": "textarea",
-          "label": "Chunk Id",
-          "required": true
+          "label": "Fragment ID",
+          "required": true,
+          "help_text": "Stable identifier of one text fragment, unique within the collection. Example: manual_42_part_1. Reusing it in Save text fragment replaces the stored fragment, even if a different Document ID is supplied.",
+          "placeholder": "manual_42_part_1"
         },
         {
           "name": "collection",
           "widget_type": "textarea",
-          "label": "Collection",
-          "required": true
+          "label": "Vector collection name",
+          "required": true,
+          "help_text": "Name of the collection table in the connection schema (fs_vectors by default). Use letters, digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or check a collection before saving or searching.",
+          "placeholder": "knowledge_base"
         },
         {
           "name": "include_vector",
           "widget_type": "boolean",
-          "label": "Include Vector",
-          "required": false
+          "label": "Include embedding in results",
+          "required": false,
+          "help_text": "Optional; false by default. Enable only when a later step needs the numeric vector as well as the text and metadata."
         }
       ]
     },
     {
       "operation_id": "update_chunk",
-      "title": "Update Chunk",
+      "title": "Vector: Update a text fragment",
       "fields": [
         {
           "name": "chunk_id",
           "widget_type": "textarea",
-          "label": "Chunk Id",
-          "required": true
+          "label": "Fragment ID",
+          "required": true,
+          "help_text": "Stable identifier of one text fragment, unique within the collection. Example: manual_42_part_1. Reusing it in Save text fragment replaces the stored fragment, even if a different Document ID is supplied.",
+          "placeholder": "manual_42_part_1"
         },
         {
           "name": "collection",
           "widget_type": "textarea",
-          "label": "Collection",
-          "required": true
+          "label": "Vector collection name",
+          "required": true,
+          "help_text": "Name of the collection table in the connection schema (fs_vectors by default). Use letters, digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or check a collection before saving or searching.",
+          "placeholder": "knowledge_base"
         },
         {
           "name": "content",
           "widget_type": "textarea",
-          "label": "Content",
-          "required": false
+          "label": "Fragment text",
+          "required": false,
+          "help_text": "Text to store or replace for this fragment, for example a paragraph from a manual. Generate a new embedding when changing its meaning; the action does not generate embeddings.",
+          "placeholder": "Refund requests can be submitted within 30 days."
         },
         {
           "name": "metadata",
           "widget_type": "json",
-          "label": "Metadata",
-          "required": false
+          "label": "Fragment metadata (JSON)",
+          "required": false,
+          "help_text": "Optional JSON object used for filtering or context, for example language and category. The supplied object replaces the existing metadata; it is not merged.",
+          "placeholder": "{\"language\":\"en\",\"category\":\"refunds\"}"
         },
         {
           "name": "source",
           "widget_type": "json",
-          "label": "Source",
-          "required": false
+          "label": "Document source (JSON)",
+          "required": false,
+          "help_text": "Optional JSON object returned with search results, for example a document URL or title. The supplied object replaces the existing source; it is not merged.",
+          "placeholder": "{\"url\":\"https://example.com/manual\",\"title\":\"Customer manual\"}"
         },
         {
           "name": "vector",
           "widget_type": "json",
-          "label": "Vector",
-          "required": false
+          "label": "Embedding vector (JSON array)",
+          "required": false,
+          "help_text": "Numeric embedding from an earlier embedding-generation step. Use the same model and exact number of dimensions as the collection. [0.1,0.2,0.3] is an illustration for a 3-dimensional collection, not a replacement for a real model output.",
+          "placeholder": "[0.1,0.2,0.3]"
         }
       ]
     },
     {
       "operation_id": "delete_chunk",
-      "title": "Delete Chunk",
+      "title": "Vector: Delete one text fragment",
       "fields": [
         {
           "name": "chunk_id",
           "widget_type": "textarea",
-          "label": "Chunk Id",
-          "required": true
+          "label": "Fragment ID",
+          "required": true,
+          "help_text": "Stable identifier of one text fragment, unique within the collection. Example: manual_42_part_1. Reusing it in Save text fragment replaces the stored fragment, even if a different Document ID is supplied.",
+          "placeholder": "manual_42_part_1"
         },
         {
           "name": "collection",
           "widget_type": "textarea",
-          "label": "Collection",
-          "required": true
+          "label": "Vector collection name",
+          "required": true,
+          "help_text": "Name of the collection table in the connection schema (fs_vectors by default). Use letters, digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or check a collection before saving or searching.",
+          "placeholder": "knowledge_base"
         }
       ]
     },
     {
       "operation_id": "delete_document",
-      "title": "Delete Document",
+      "title": "Vector: Delete all fragments of a document",
       "fields": [
         {
           "name": "collection",
           "widget_type": "textarea",
-          "label": "Collection",
-          "required": true
+          "label": "Vector collection name",
+          "required": true,
+          "help_text": "Name of the collection table in the connection schema (fs_vectors by default). Use letters, digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or check a collection before saving or searching.",
+          "placeholder": "knowledge_base"
         },
         {
           "name": "document_id",
           "widget_type": "textarea",
-          "label": "Document Id",
-          "required": true
+          "label": "Document ID",
+          "required": true,
+          "help_text": "Identifier shared by all fragments of one document, for example manual_42. Use the same ID to save its fragments and later remove them together.",
+          "placeholder": "manual_42"
         }
       ]
     },
     {
       "operation_id": "query",
-      "title": "Query",
+      "title": "Vector: Search similar text",
       "fields": [
         {
           "name": "collection",
           "widget_type": "textarea",
-          "label": "Collection",
-          "required": true
+          "label": "Vector collection name",
+          "required": true,
+          "help_text": "Name of the collection table in the connection schema (fs_vectors by default). Use letters, digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or check a collection before saving or searching.",
+          "placeholder": "knowledge_base"
         },
         {
           "name": "include_vector",
           "widget_type": "boolean",
-          "label": "Include Vector",
-          "required": false
+          "label": "Include embedding in results",
+          "required": false,
+          "help_text": "Optional; false by default. Enable only when a later step needs the numeric vector as well as the text and metadata."
         },
         {
           "name": "limit",
           "widget_type": "number",
-          "label": "Limit",
-          "required": false
+          "label": "Maximum matching fragments",
+          "required": false,
+          "help_text": "Return up to 1 to 100 matches; default 20. For example, start with 5 fragments for an answer step. Approximate search and metadata filters may return fewer matches.",
+          "placeholder": "5"
         },
         {
           "name": "metadata_filter",
           "widget_type": "json",
-          "label": "Metadata Filter",
-          "required": false
+          "label": "Metadata filter (JSON)",
+          "required": false,
+          "help_text": "Optional containment filter on stored metadata. For example, {\"language\":\"en\"} searches only fragments whose metadata contains that key and value. Omit it to search the whole collection.",
+          "placeholder": "{\"language\":\"en\"}"
         },
         {
           "name": "min_score",
           "widget_type": "number",
-          "label": "Min Score",
-          "required": false
+          "label": "Minimum similarity score",
+          "required": false,
+          "help_text": "Optional cutoff; omit it when first trying a search. The score depends on the collection metric and is not a percentage: cosine uses 1-distance, l2 uses 1/(1+distance), and inner_product uses the dot product."
         },
         {
           "name": "vector",
           "widget_type": "json",
-          "label": "Vector",
-          "required": true
+          "label": "Question or search-text embedding (JSON array)",
+          "required": true,
+          "help_text": "Generate the embedding of the question or search text in an earlier step, using the same model and dimensions as the saved fragments. This field takes the numeric array, not the question text. The 3-value example is illustrative only.",
+          "placeholder": "[0.1,0.2,0.3]"
         }
       ]
     }

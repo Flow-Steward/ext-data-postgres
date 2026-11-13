@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.8
+
+- Explain all 11 workflow actions with task-oriented names, connection requirements, field help and examples. Add an explicit SQL write form and a guide covering Dataset reads, parameterized SQL writes, document indexing and vector search. Existing action IDs, input contracts and runtime behavior are preserved.
+
 ## 1.4.7
 
 - Move the stateless test launcher under `tests/` so installation correctly separates test-only import setup from extension runtime code. PostgreSQL queries, writes, pgvector operations and native payloads are unchanged.

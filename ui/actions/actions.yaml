@@ -1,7 +1,11 @@
 actions:
 - action_id: execute_write
-  title: Execute PostgreSQL write
-  description: Run one parameterized INSERT, UPDATE or DELETE on the selected project connection.
+  title: 'SQL: Insert, update or delete rows'
+  description: 'Write workflow results to your database using one parameterized INSERT, UPDATE or DELETE.
+    Select a PostgreSQL project connection with write permission, enter SQL with :named parameters, and
+    supply their values in Parameters. Example: after approval, UPDATE orders SET status = :status WHERE
+    order_id = :order_id. INSERT ... ON CONFLICT DO UPDATE supports upserts. Dataset saved queries are
+    read-only; use this action for writes. Test mode validates the input without writing.'
   workflow_visible: true
   required_scopes:
   - extension:invoke
@@ -14,15 +18,25 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: sql
     type: string
     required: true
+    description: Enter one INSERT, UPDATE or DELETE. Bind values with :named placeholders and supply their
+      values in Parameters. INSERT ... ON CONFLICT DO UPDATE supports upserts. Use a Dataset saved query
+      for SELECT reads. Test mode validates this action without writing.
   - name: params
     type: object
     required: false
+    description: 'Object containing a value for every :named placeholder in the SQL statement. Bind workflow
+      values here rather than inserting them into the SQL text. Example: status and order_id for the statement
+      above.'
   - name: param_schema
     type: object
     required: false
+    description: "Declare a type for every :named SQL placeholder in properties, matching the Parameters object. Required when SQL uses parameters; omit only for SQL without placeholders. Supported types: string, integer, number, boolean and null."
   result_fields:
   - result.status
   - result.rows
@@ -139,9 +153,12 @@ actions:
   - unknown_action
 - action_id: ensure_collection
   workflow_visible: true
-  title: 'Vector: Ensure Collection'
-  description: 'On the selected PostgreSQL connection: Create schema, dimensioned chunk table and HNSW
-    index; verify existing dimension and metric. pgvector must already be installed in public.'
+  title: 'Vector: Create or check a collection'
+  description: 'Prepare a table and search index for text fragments and their embeddings before loading
+    a knowledge base. Select a direct PostgreSQL project connection with pgvector already installed in
+    public. Example: collection knowledge_base, dimensions 1536, metric cosine. Set dimensions to the
+    exact length produced by your embedding model. An existing collection must match the requested dimensions
+    and metric.'
   required_scopes:
   - extension:invoke
   handler:
@@ -150,15 +167,26 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: collection
     type: string
     required: true
+    description: Name of the collection table in the connection schema (fs_vectors by default). Use letters,
+      digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or
+      check a collection before saving or searching.
   - name: dimensions
     type: integer
     required: true
+    description: 'Number of values in each embedding: 1 to 2000. Match your embedding model exactly; for
+      example, use 1536 only when the model returns 1536 values. An existing collection must have the
+      same dimensions.'
   - name: metric
     type: string
     required: false
+    description: Use cosine (default), l2 or inner_product. Keep the same metric for the collection throughout
+      ingestion and search. An existing collection must match this value.
   result_fields:
   - result.records
   - result.count
@@ -182,8 +210,11 @@ actions:
   command_type: invoke_extension_action
 - action_id: get_collection
   workflow_visible: true
-  title: 'Vector: Get Collection'
-  description: 'On the selected PostgreSQL connection: Get collection.'
+  title: 'Vector: Inspect a collection'
+  description: Check an existing vector collection before saving fragments or searching. Select a direct
+    PostgreSQL project connection and enter the collection name, for example knowledge_base. Returns the
+    embedding dimensions, distance metric and index validity; it does not return the stored documents
+    or their total count.
   required_scopes:
   - extension:invoke
   handler:
@@ -192,9 +223,15 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: collection
     type: string
     required: true
+    description: Name of the collection table in the connection schema (fs_vectors by default). Use letters,
+      digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or
+      check a collection before saving or searching.
   result_fields:
   - result.records
   - result.count
@@ -217,9 +254,11 @@ actions:
   command_type: invoke_extension_action
 - action_id: drop_collection
   workflow_visible: true
-  title: 'Vector: Drop Collection'
-  description: 'On the selected PostgreSQL connection: Drop collection table and indexes with explicit
-    confirmation.'
+  title: 'Vector: Delete a collection and all its text'
+  description: 'Remove a vector collection table, its indexes and every stored fragment. Use this to retire
+    a knowledge base you no longer need. Select a direct PostgreSQL project connection, enter the collection
+    name, and explicitly enable Confirm deletion. Example: remove a temporary collection named import_trial.
+    This deletes data; test mode suppresses the deletion.'
   required_scopes:
   - extension:invoke
   handler:
@@ -228,12 +267,20 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: collection
     type: string
     required: true
+    description: Name of the collection table in the connection schema (fs_vectors by default). Use letters,
+      digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or
+      check a collection before saving or searching.
   - name: confirm
     type: boolean
     required: true
+    description: Enable explicitly to delete the collection table, its indexes and all stored text. Leave
+      disabled unless you intend to remove the entire collection.
   result_fields:
   - result.records
   - result.count
@@ -257,8 +304,12 @@ actions:
   command_type: invoke_extension_action
 - action_id: upsert_chunk
   workflow_visible: true
-  title: 'Vector: Upsert Chunk'
-  description: 'On the selected PostgreSQL connection: Upsert chunk.'
+  title: 'Vector: Save text fragment and embedding'
+  description: 'Insert a text fragment or replace the fragment with the same Fragment ID in an existing
+    collection. Select a direct PostgreSQL project connection, collection and Document ID; supply a stable
+    Fragment ID and an embedding generated in an earlier step. Example: save manual_42_part_1 for document
+    manual_42. Supply all content, metadata and source values you want to keep: omitted optional values
+    are replaced with empty defaults. Use Update a text fragment to change selected fields only.'
   required_scopes:
   - extension:invoke
   handler:
@@ -267,27 +318,47 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: chunk_id
     type: string
     required: true
+    description: 'Stable identifier of one text fragment, unique within the collection. Example: manual_42_part_1.
+      Reusing it in Save text fragment replaces the stored fragment, even if a different Document ID is
+      supplied.'
   - name: collection
     type: string
     required: true
+    description: Name of the collection table in the connection schema (fs_vectors by default). Use letters,
+      digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or
+      check a collection before saving or searching.
   - name: content
     type: string
     required: false
+    description: Text to store or replace for this fragment, for example a paragraph from a manual. Generate
+      a new embedding when changing its meaning; the action does not generate embeddings.
   - name: document_id
     type: string
     required: true
+    description: Identifier shared by all fragments of one document, for example manual_42. Use the same
+      ID to save its fragments and later remove them together.
   - name: metadata
     type: json
     required: false
+    description: Optional JSON object used for filtering or context, for example language and category.
+      The supplied object replaces the existing metadata; it is not merged.
   - name: source
     type: json
     required: false
+    description: Optional JSON object returned with search results, for example a document URL or title.
+      The supplied object replaces the existing source; it is not merged.
   - name: vector
     type: json
     required: true
+    description: Numeric embedding from an earlier embedding-generation step. Use the same model and exact
+      number of dimensions as the collection. [0.1,0.2,0.3] is an illustration for a 3-dimensional collection,
+      not a replacement for a real model output.
   result_fields:
   - result.records
   - result.count
@@ -311,10 +382,12 @@ actions:
   command_type: invoke_extension_action
 - action_id: upsert_document
   workflow_visible: true
-  title: 'Vector: Upsert Document'
-  description: 'On the selected PostgreSQL connection: Atomically upsert 1 to 100 explicitly identified
-    chunks for a document. Existing omitted chunks are preserved; delete_document removes all document
-    chunks.'
+  title: 'Vector: Save document fragments and embeddings'
+  description: 'Save 1 to 100 fragments for one document in a single database statement. Split the text
+    and generate embeddings in earlier steps, then select a direct PostgreSQL project connection and collection
+    and provide the Document ID and Fragments array. Example: index the sections of manual_42 for later
+    question answering. Reusing a Fragment ID replaces that fragment; existing fragments omitted from
+    the array remain stored. This action does not split text or generate embeddings.'
   required_scopes:
   - extension:invoke
   handler:
@@ -323,18 +396,31 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: chunks
     type: json
     required: true
+    description: Provide 1 to 100 objects. Each needs a unique chunk_id and vector; content and metadata
+      are optional. Generate vectors before this step and match the collection dimensions. Omitted existing
+      fragments are preserved. The example uses illustrative 3-dimensional vectors.
   - name: collection
     type: string
     required: true
+    description: Name of the collection table in the connection schema (fs_vectors by default). Use letters,
+      digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or
+      check a collection before saving or searching.
   - name: document_id
     type: string
     required: true
+    description: Identifier shared by all fragments of one document, for example manual_42. Use the same
+      ID to save its fragments and later remove them together.
   - name: source
     type: json
     required: false
+    description: Optional JSON object returned with search results, for example a document URL or title.
+      The supplied object replaces the existing source; it is not merged.
   result_fields:
   - result.records
   - result.count
@@ -358,8 +444,11 @@ actions:
   command_type: invoke_extension_action
 - action_id: get_chunk
   workflow_visible: true
-  title: 'Vector: Get Chunk'
-  description: 'On the selected PostgreSQL connection: Get chunk.'
+  title: 'Vector: Read a saved text fragment'
+  description: Retrieve one stored fragment by its Fragment ID, for example manual_42_part_1, from the
+    selected direct PostgreSQL connection and collection. Returns its text, Document ID, metadata and
+    source. Enable Include embedding only if a later step needs the numeric vector. Use this to inspect
+    a known fragment; use Search similar text to find fragments by meaning.
   required_scopes:
   - extension:invoke
   handler:
@@ -368,15 +457,26 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: chunk_id
     type: string
     required: true
+    description: 'Stable identifier of one text fragment, unique within the collection. Example: manual_42_part_1.
+      Reusing it in Save text fragment replaces the stored fragment, even if a different Document ID is
+      supplied.'
   - name: collection
     type: string
     required: true
+    description: Name of the collection table in the connection schema (fs_vectors by default). Use letters,
+      digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or
+      check a collection before saving or searching.
   - name: include_vector
     type: boolean
     required: false
+    description: Optional; false by default. Enable only when a later step needs the numeric vector as
+      well as the text and metadata.
   result_fields:
   - result.records
   - result.count
@@ -399,9 +499,12 @@ actions:
   command_type: invoke_extension_action
 - action_id: update_chunk
   workflow_visible: true
-  title: 'Vector: Update Chunk'
-  description: 'On the selected PostgreSQL connection: Replace supplied content, metadata, source or vector
-    fields by stable chunk ID.'
+  title: 'Vector: Update a text fragment'
+  description: 'Change selected fields of an existing fragment without replacing omitted fields. Select
+    a direct PostgreSQL project connection and collection, enter the Fragment ID, and provide at least
+    one of text, metadata, source or embedding. Example: correct the text of manual_42_part_1 and supply
+    its newly generated embedding. Supplied metadata and source objects replace the existing objects;
+    they are not merged. This action does not create a missing fragment.'
   required_scopes:
   - extension:invoke
   handler:
@@ -410,24 +513,42 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: chunk_id
     type: string
     required: true
+    description: 'Stable identifier of one text fragment, unique within the collection. Example: manual_42_part_1.
+      Reusing it in Save text fragment replaces the stored fragment, even if a different Document ID is
+      supplied.'
   - name: collection
     type: string
     required: true
+    description: Name of the collection table in the connection schema (fs_vectors by default). Use letters,
+      digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or
+      check a collection before saving or searching.
   - name: content
     type: string
     required: false
+    description: Text to store or replace for this fragment, for example a paragraph from a manual. Generate
+      a new embedding when changing its meaning; the action does not generate embeddings.
   - name: metadata
     type: json
     required: false
+    description: Optional JSON object used for filtering or context, for example language and category.
+      The supplied object replaces the existing metadata; it is not merged.
   - name: source
     type: json
     required: false
+    description: Optional JSON object returned with search results, for example a document URL or title.
+      The supplied object replaces the existing source; it is not merged.
   - name: vector
     type: json
     required: false
+    description: Numeric embedding from an earlier embedding-generation step. Use the same model and exact
+      number of dimensions as the collection. [0.1,0.2,0.3] is an illustration for a 3-dimensional collection,
+      not a replacement for a real model output.
   result_fields:
   - result.records
   - result.count
@@ -451,8 +572,11 @@ actions:
   command_type: invoke_extension_action
 - action_id: delete_chunk
   workflow_visible: true
-  title: 'Vector: Delete Chunk'
-  description: 'On the selected PostgreSQL connection: Delete chunk.'
+  title: 'Vector: Delete one text fragment'
+  description: 'Delete one fragment by its Fragment ID from the selected direct PostgreSQL connection
+    and collection. Example: remove manual_42_part_1 after discovering that this section is obsolete.
+    Other fragments of the document remain stored. Use Delete all fragments of a document to remove the
+    whole document. Test mode suppresses the deletion.'
   required_scopes:
   - extension:invoke
   handler:
@@ -461,12 +585,21 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: chunk_id
     type: string
     required: true
+    description: 'Stable identifier of one text fragment, unique within the collection. Example: manual_42_part_1.
+      Reusing it in Save text fragment replaces the stored fragment, even if a different Document ID is
+      supplied.'
   - name: collection
     type: string
     required: true
+    description: Name of the collection table in the connection schema (fs_vectors by default). Use letters,
+      digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or
+      check a collection before saving or searching.
   result_fields:
   - result.records
   - result.count
@@ -490,8 +623,11 @@ actions:
   command_type: invoke_extension_action
 - action_id: delete_document
   workflow_visible: true
-  title: 'Vector: Delete Document'
-  description: 'On the selected PostgreSQL connection: Delete document.'
+  title: 'Vector: Delete all fragments of a document'
+  description: 'Remove every fragment with the selected Document ID from a collection on a direct PostgreSQL
+    project connection. Example: delete all fragments of manual_42 before reindexing a shorter replacement
+    document. The original file and the collection table are preserved. The number removed is returned
+    in result.records[0].deleted_count. Test mode suppresses the deletion.'
   required_scopes:
   - extension:invoke
   handler:
@@ -500,12 +636,20 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: collection
     type: string
     required: true
+    description: Name of the collection table in the connection schema (fs_vectors by default). Use letters,
+      digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or
+      check a collection before saving or searching.
   - name: document_id
     type: string
     required: true
+    description: Identifier shared by all fragments of one document, for example manual_42. Use the same
+      ID to save its fragments and later remove them together.
   result_fields:
   - result.records
   - result.count
@@ -529,9 +673,13 @@ actions:
   command_type: invoke_extension_action
 - action_id: query
   workflow_visible: true
-  title: 'Vector: Query'
-  description: 'On the selected PostgreSQL connection: Return bounded nearest chunks with JSON metadata
-    containment filter. Cosine score=1-distance; L2 score=1/(1+distance); inner-product score=dot product.'
+  title: 'Vector: Search similar text'
+  description: 'Find stored fragments related to a question or other text by comparing embeddings. Generate
+    the query embedding in an earlier step using the same model as the stored fragments, then select a
+    direct PostgreSQL project connection and collection and pass that vector. Example: retrieve the 5
+    closest knowledge-base fragments to provide context to an answer step. Returns matching text, metadata,
+    source and similarity scores. An optional metadata filter narrows the search; the action does not
+    generate embeddings or an answer.'
   required_scopes:
   - extension:invoke
   handler:
@@ -540,24 +688,42 @@ actions:
   - name: connection_ref
     type: connection_ref
     required: true
+    description: Select an existing project connection. SQL writes require database write permission.
+      Vector actions require the direct postgres profile, pgvector installed in public, and permission
+      on the collection schema (fs_vectors by default). Keep credentials in the connection secrets.
   - name: collection
     type: string
     required: true
+    description: Name of the collection table in the connection schema (fs_vectors by default). Use letters,
+      digits and underscores; start with a letter or underscore; maximum 48 characters. Run Create or
+      check a collection before saving or searching.
   - name: include_vector
     type: boolean
     required: false
+    description: Optional; false by default. Enable only when a later step needs the numeric vector as
+      well as the text and metadata.
   - name: limit
     type: integer
     required: false
+    description: Return up to 1 to 100 matches; default 20. For example, start with 5 fragments for an
+      answer step. Approximate search and metadata filters may return fewer matches.
   - name: metadata_filter
     type: json
     required: false
+    description: Optional containment filter on stored metadata. For example, {"language":"en"} searches
+      only fragments whose metadata contains that key and value. Omit it to search the whole collection.
   - name: min_score
     type: number
     required: false
+    description: 'Optional cutoff; omit it when first trying a search. The score depends on the collection
+      metric and is not a percentage: cosine uses 1-distance, l2 uses 1/(1+distance), and inner_product
+      uses the dot product.'
   - name: vector
     type: json
     required: true
+    description: Numeric embedding from an earlier embedding-generation step. Use the same model and exact
+      number of dimensions as the collection. [0.1,0.2,0.3] is an illustration for a 3-dimensional collection,
+      not a replacement for a real model output.
   result_fields:
   - result.records
   - result.count

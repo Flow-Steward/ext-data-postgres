@@ -1,6 +1,6 @@
 # PostgreSQL
 
-Flow Steward extension `flowsteward.data-connector-mcp-toolbox-postgres`, version **1.4.6**.
+Flow Steward extension `flowsteward.data-connector-mcp-toolbox-postgres`, version **1.4.8**.
 
 Bring PostgreSQL data and vector retrieval into the same Flow Steward project connection. The read-only Dataset connector tests connections, inspects schemas, validates saved SQL, previews results and executes saved queries. SQL profiles cover direct PostgreSQL, AlloyDB Omni, AlloyDB for PostgreSQL and Cloud SQL for PostgreSQL. Workflow steps separately run one parameterized INSERT, UPDATE or DELETE, for example to record a completed approval or update an application record after processing.
 
@@ -23,6 +23,10 @@ Build: `scripts/build_toolbox.sh`. Package: `python3 scripts/package_extension.p
 Credential validation: Password is required for postgres. Supply password or the matching profile-specific secret env variable. Managed PostgreSQL/AlloyDB IAM profiles keep password optional; public config env is not a credential source. Required profiles reject missing/blank secrets before provider dispatch, including workflow test mode. The secret environment alternative belongs in project secrets, for example `env: {PROFILE_PASSWORD: ...}` using the exact variable from the selected pinned profile. Wrong-profile environment keys do not satisfy the requirement.
 
 The manifest egress declaration identifies the direct project host field for administrator information. Managed profiles also contact Google control-plane/credential services and resolved database endpoints; this declaration is not an exhaustive destination inventory or an enforced SQL network boundary.
+
+## Workflow action setup and examples
+
+See [PostgreSQL workflow actions](docs/workflow-actions.md) for choosing Dataset reads versus SQL writes, configuring each action, and indexing and searching a document with pgvector. The builder includes the same purpose, connection requirements and input examples in action descriptions and field help.
 
 ## pgvector on the same PostgreSQL connection
 
@@ -47,19 +51,19 @@ pinned shared GitHub Actions workflow using `.github/release-config.json` to tes
 package both Linux runtime targets, and publish the release assets automatically.
 Manual ZIP uploads are not part of the release process.
 
-After merging the version **1.4.6** update into `main`, create and push its tag:
+After merging the version **1.4.8** update into `main`, create and push its tag:
 
 ```sh
 git switch main
 git pull --ff-only
-git tag -a v1.4.6 -m "Release v1.4.6"
-git push origin v1.4.6
+git tag -a v1.4.8 -m "Release v1.4.8"
+git push origin v1.4.8
 ```
 
 To rerun the workflow for an existing tag without moving it:
 
 ```sh
-gh workflow run release.yml --ref main -f tag=v1.4.6
+gh workflow run release.yml --ref main -f tag=v1.4.8
 ```
 
 The manifest remains the source for release identity and catalog descriptions.
