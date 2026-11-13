@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.7
+
+- Move the stateless test launcher under `tests/` so installation correctly separates test-only import setup from extension runtime code. PostgreSQL queries, writes, pgvector operations and native payloads are unchanged.
+
 ## 1.4.4
 
 - Rebuild with checksum-verified official Go 1.27.4 SDK security fixes. The pinned Go 1.27.3 image supplies only the bootstrap environment; Toolbox source, all 106 module pins and safety patches remain unchanged.
