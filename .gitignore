@@ -7,3 +7,8 @@ bin/
 dist/
 packages.txt
 tests/live-pgvector.local.json
+
+# Native outputs are rebuilt and verified from the pinned source in CI.
+/toolbox-provenance.json
+/SHA256SUMS
+/scripts/go-toolchain-selected.json

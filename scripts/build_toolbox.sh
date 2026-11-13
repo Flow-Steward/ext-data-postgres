@@ -13,8 +13,8 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 test "$#" = 0 || { echo "This build accepts no database selector" >&2; exit 2; }
 VARIANT=postgres
-TOOLBOX_TAG=v1.16.0
-TOOLBOX_COMMIT=06ea49d9a487a72c22419b5a8d5c22c11f0d7485
+TOOLBOX_TAG=v1.17.0
+TOOLBOX_COMMIT=45ed205cc8682ed066c82e0b65bcd0e8fc3becce
 BOOTSTRAP_IMAGE=golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0
 PATCH=scripts/patches/0001-flowsteward-driver-bound-query-params.patch
 SECURITY_PATCH=scripts/patches/0003-flowsteward-security-dependencies.patch
@@ -40,7 +40,7 @@ docker run --rm --pull=never --name "$BUILD_NAME" --cpus=2 --memory=4g \
   --label flow-steward.owner=ext-data-postgres-native-build \
   -v "$GO_CACHE:/go/pkg/mod" -v "$BUILD_CACHE:/root/.cache/go-build" \
   -e TOOLBOX_TAG="$TOOLBOX_TAG" -e TOOLBOX_COMMIT="$TOOLBOX_COMMIT" -e PATCH="$PATCH" -e VECTOR_PATCH="$VECTOR_PATCH" \
-  -e PROFILE_PATCH="$PROFILE_PATCH" -e SECURITY_PATCH="$SECURITY_PATCH" -e GOTOOLCHAIN=local -e GOFLAGS=-mod=readonly \
+  -e GOMAXPROCS=2 -e PROFILE_PATCH="$PROFILE_PATCH" -e SECURITY_PATCH="$SECURITY_PATCH" -e GOTOOLCHAIN=local -e GOFLAGS=-mod=readonly \
   -e PREBUILTS="$PREBUILTS" -e VARIANT="$VARIANT" \
   -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   -v "$ROOT:/out" "$@" "$BOOTSTRAP_IMAGE" sh -c '
@@ -104,7 +104,7 @@ docker run --rm --pull=never --name "$BUILD_NAME" --cpus=2 --memory=4g \
 
     go test -mod=readonly -p 1 ./internal/util/flowstewardbinding ./internal/tools/postgres/postgresexecutesql ./internal/sources/postgres
     go test -mod=readonly -p 1 ./internal/sources/postgres -run "TestBuildPostgresURL|TestParseQueryExecMode|TestFlowSteward"
-    export SOURCE_DATE_EPOCH=1779400183
+    export SOURCE_DATE_EPOCH=1794536030
     for target in linux-amd64 linux-arm64; do
       arch=${target#linux-}
       mkdir -p "/out/bin/$target"

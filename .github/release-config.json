@@ -25,26 +25,5 @@
     "tests/test_write_sql_guards.py"
   ],
   "additional_assets": [],
-  "payload_sources": [
-    {
-      "target": "linux-amd64",
-      "url": "https://github.com/Flow-Steward/ext-data-postgres/releases/download/v1.4.4/flowsteward.data-connector-mcp-toolbox-postgres-1.4.4-linux-amd64.zip",
-      "bytes": 13215559,
-      "sha256": "4aaad2cbeddac7586a3d6f6e31f13922ef5b8ef6b6541a3f0b3011aadd51583e",
-      "restore_paths": [
-        "bin/linux-amd64/toolbox",
-        "packages.txt"
-      ]
-    },
-    {
-      "target": "linux-arm64",
-      "url": "https://github.com/Flow-Steward/ext-data-postgres/releases/download/v1.4.4/flowsteward.data-connector-mcp-toolbox-postgres-1.4.4-linux-arm64.zip",
-      "bytes": 11963175,
-      "sha256": "ecc7a78c51751d1247b6648917393dd07656759af308f7dbd6f142c6aa225e5d",
-      "restore_paths": [
-        "bin/linux-arm64/toolbox",
-        "packages.txt"
-      ]
-    }
-  ]
+  "payload_sources": []
 }

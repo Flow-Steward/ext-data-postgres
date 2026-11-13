@@ -914,9 +914,9 @@ def test_packaged_toolbox_artifacts_are_pinned_and_bounded() -> None:
     expected = {"linux-amd64": 62, "linux-arm64": 183}
 
     assert provenance["name"] == "MCP Toolbox for Databases"
-    assert provenance["version"] == "1.16.0"
-    assert provenance["tag"] == "v1.16.0"
-    assert provenance["commit"] == "06ea49d9a487a72c22419b5a8d5c22c11f0d7485"
+    assert provenance["version"] == "1.17.0"
+    assert provenance["tag"] == "v1.17.0"
+    assert provenance["commit"] == "45ed205cc8682ed066c82e0b65bcd0e8fc3becce"
     assert provenance["source_url"] == "https://github.com/googleapis/mcp-toolbox"
     assert provenance["build"]["targets"] == sorted(expected)
     if VARIANT:

@@ -1,9 +1,9 @@
 Flow Steward Toolbox Dataset Connector
 Copyright 2026 Flow Steward contributors
 
-This extension packages MCP Toolbox for Databases 1.16.0 from
+This extension packages MCP Toolbox for Databases 1.17.0 from
 https://github.com/googleapis/mcp-toolbox at commit
-06ea49d9a487a72c22419b5a8d5c22c11f0d7485.
+45ed205cc8682ed066c82e0b65bcd0e8fc3becce.
 
 MCP Toolbox for Databases is Copyright 2024 Google LLC and is licensed under
 the Apache License, Version 2.0. The complete license text is included in

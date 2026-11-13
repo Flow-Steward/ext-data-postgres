@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.9
+
+- Rebuild Toolbox 1.17.0 from pinned source for Linux AMD64 and ARM64.
+- Update the reviewed Google, PostgreSQL and AWS module graph while retaining SQL/vector/profile controls.
+- CI generates and verifies native provenance and package hashes before publication.
+
+
 ## 1.4.8
 
 - Explain all 11 workflow actions with task-oriented names, connection requirements, field help and examples. Add an explicit SQL write form and a guide covering Dataset reads, parameterized SQL writes, document indexing and vector search. Existing action IDs, input contracts and runtime behavior are preserved.
