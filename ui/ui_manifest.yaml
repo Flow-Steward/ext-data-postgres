@@ -3,3 +3,4 @@ pages:
   - ref: pages/overview.yaml
   - ref: pages/runtime_health.yaml
   - ref: pages/supported_connectors.yaml
+  - ref: pages/support.yaml
