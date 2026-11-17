@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.12
+
+- Rebuild Linux AMD64 and ARM64 native payloads with github.com/jackc/puddle/v2 v2.2.4 on the pinned Toolbox v1.17.0 and verified Go 1.27.4 baseline.
+- Update the locked module checksums and native security floor so packaging rejects the superseded v2.2.3 dependency.
+
 ## 1.4.11
 
 ### Added

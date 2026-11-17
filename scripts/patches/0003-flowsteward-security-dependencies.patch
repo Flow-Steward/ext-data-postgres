@@ -1,5 +1,5 @@
 diff --git a/go.mod b/go.mod
-index d121206abb..4afb96d2a6 100644
+index d121206..01c8b98 100644
 --- a/go.mod
 +++ b/go.mod
 @@ -1,32 +1,30 @@
@@ -218,7 +218,7 @@ index d121206abb..4afb96d2a6 100644
  	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
  	github.com/godror/knownpb v0.3.0 // indirect
  	github.com/gofrs/flock v0.13.0 // indirect
-@@ -188,11 +188,11 @@ require (
+@@ -188,17 +188,17 @@ require (
  	github.com/golang-sql/sqlexp v0.1.0 // indirect
  	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
  	github.com/golang/snappy v1.0.0 // indirect
@@ -233,6 +233,13 @@ index d121206abb..4afb96d2a6 100644
  	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
  	github.com/hashicorp/go-uuid v1.0.4 // indirect
  	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+ 	github.com/jackc/pgpassfile v1.0.0 // indirect
+ 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+-	github.com/jackc/puddle/v2 v2.2.3 // indirect
++	github.com/jackc/puddle/v2 v2.2.4 // indirect
+ 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
+ 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
+ 	github.com/jcmturner/gofork v1.7.6 // indirect
 @@ -207,15 +207,15 @@ require (
  	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
  	github.com/json-iterator/go v1.1.12 // indirect
@@ -320,7 +327,7 @@ index d121206abb..4afb96d2a6 100644
  	gopkg.in/ini.v1 v1.67.0 // indirect
  	modernc.org/libc v1.79.0 // indirect
 diff --git a/go.sum b/go.sum
-index 23e8997bf3..80f28b657a 100644
+index 23e8997..2c26663 100644
 --- a/go.sum
 +++ b/go.sum
 @@ -1,48 +1,48 @@
@@ -649,17 +656,21 @@ index 23e8997bf3..80f28b657a 100644
  github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c h1:6rhixN/i8ZofjG1Y75iExal34USq5p+wiN1tpie8IrU=
  github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c/go.mod h1:NMPJylDgVpX0MLRlPy15sqSwOFv/U1GZ2m21JhFfek0=
  github.com/hashicorp/go-uuid v1.0.2/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
-@@ -383,8 +388,8 @@ github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsI
+@@ -383,10 +388,10 @@ github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsI
  github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
  github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=
  github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761/go.mod h1:5TJZWKEWniPve33vlWYSoGYefn3gLQRzjfDlhSJ9ZKM=
 -github.com/jackc/pgx/v5 v5.12.0 h1:hWwax8YiGT0YiN50U1oIDn5kgR7KC2tG3rmavwpPkxY=
 -github.com/jackc/pgx/v5 v5.12.0/go.mod h1:u2Fi6no03HCSBYE+ZVdLxbwdu3xyi2vU+K/YNJioSds=
+-github.com/jackc/puddle/v2 v2.2.3 h1:f8HoREISb3l5eO9coPgK7U3hKLhWGokOFVcThl5jrao=
+-github.com/jackc/puddle/v2 v2.2.3/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
 +github.com/jackc/pgx/v5 v5.13.0 h1:Hl08k64maU0nrRyVUEbwCnK6/gT0EhMrtAqBHz9/gA4=
 +github.com/jackc/pgx/v5 v5.13.0/go.mod h1:u2Fi6no03HCSBYE+ZVdLxbwdu3xyi2vU+K/YNJioSds=
- github.com/jackc/puddle/v2 v2.2.3 h1:f8HoREISb3l5eO9coPgK7U3hKLhWGokOFVcThl5jrao=
- github.com/jackc/puddle/v2 v2.2.3/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
++github.com/jackc/puddle/v2 v2.2.4 h1:N6Mz6EGB9DL0bz3OEfxJ7eoOpjRHnnjpOh+G8kbLoG8=
++github.com/jackc/puddle/v2 v2.2.4/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
  github.com/jcmturner/aescts/v2 v2.0.0 h1:9YKLH6ey7H4eDBXW8khjYslgyqG2xZikXP0EQFKrle8=
+ github.com/jcmturner/aescts/v2 v2.0.0/go.mod h1:AiaICIRyfYg35RUkr8yESTqvSy7csK90qZ5xfvvsoNs=
+ github.com/jcmturner/dnsutils/v2 v2.0.0 h1:lltnkeZGL0wILNvrNiVCR6Ro5PGU/SeBvVO/8c/iPbo=
 @@ -407,12 +412,10 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
  github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
  github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 h1:iQTw/8FWTuc7uiaSepXwyf3o52HaUYcV+Tu66S3F5GA=
