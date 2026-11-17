@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.13
+
+- Rebuild Linux AMD64 and ARM64 native payloads with grpc-gateway v2.34.0 and its required indirect modules on the pinned Toolbox v1.17.0 and verified Go 1.27.4 baseline.
+- Preserve the existing connector controls, approved profiles and dependency security fixes.
+
 ## 1.4.12
 
 - Rebuild Linux AMD64 and ARM64 native payloads with github.com/jackc/puddle/v2 v2.2.4 on the pinned Toolbox v1.17.0 and verified Go 1.27.4 baseline.
