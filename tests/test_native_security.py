@@ -1,12 +1,17 @@
 """Check security floors against bytes of the real built payloads."""
+
 import importlib.util
 import json
 from pathlib import Path
 import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("native_security", ROOT / "scripts/native_security.py")
+spec = importlib.util.spec_from_file_location(
+    "native_security", ROOT / "scripts/native_security.py"
+)
 native_security = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(native_security)
+
 
 @pytest.mark.packaged
 @pytest.mark.parametrize("target", ["linux-amd64", "linux-arm64"])
@@ -22,9 +27,14 @@ def test_native_binary_security_floor(target):
     for key in ("go_version", "modules", "module_gaps", "module_replacements", "sha256", "size"):
         assert record[key] == provenance[key]
 
+
 @pytest.mark.parametrize("version", ["v0.57.0", "v0.58.1-0.20261008181718-2f1f834330b2"])
 def test_dependency_downgrades_are_rejected(version):
-    record = {"go_version": "go1.27.4", "modules": {"golang.org/x/crypto": version}, "module_gaps": []}
+    record = {
+        "go_version": "go1.27.4",
+        "modules": {"golang.org/x/crypto": version},
+        "module_gaps": [],
+    }
     baseline = json.loads((ROOT / "scripts/native-security-baseline.json").read_text())
     with pytest.raises(ValueError, match="module below security floor"):
         native_security.check_floors(record, baseline)
@@ -36,6 +46,7 @@ def test_local_replacement_cannot_hide_a_dependency():
     with pytest.raises(ValueError, match="unversioned native dependencies"):
         native_security.check_floors(record, baseline)
 
+
 @pytest.mark.parametrize("go_version", ["go1.27.0", "go1.27.1", "go1.27.3"])
 def test_unreviewed_compiler_branch_is_rejected(go_version):
     baseline = json.loads((ROOT / "scripts/native-security-baseline.json").read_text())
@@ -44,15 +55,27 @@ def test_unreviewed_compiler_branch_is_rejected(go_version):
         native_security.check_floors(record, baseline)
 
 
-@pytest.mark.parametrize("path,version,accepted", [
-    ("example.test/fork", "v99.0.0", False),
-    ("golang.org/x/net", "v0.61.0", False),
-    ("golang.org/x/net", "v0.62.0", True),
-])
+@pytest.mark.parametrize(
+    "path,version,accepted",
+    [
+        ("example.test/fork", "v99.0.0", False),
+        ("golang.org/x/net", "v0.61.0", False),
+        ("golang.org/x/net", None, True),
+    ],
+)
 def test_replacement_cannot_bypass_original_dependency_floor(tmp_path, path, version, accepted):
     baseline = json.loads((ROOT / "scripts/native-security-baseline.json").read_text())
+    if version is None:
+        version = baseline["modules"][path]
     import struct
-    text = "dep\tgolang.org/x/net\tv0.61.0\th1:old\n=>\t" + path + "\t" + version + "\th1:replacement\n"
+
+    text = (
+        "dep\tgolang.org/x/net\tv0.61.0\th1:old\n=>\t"
+        + path
+        + "\t"
+        + version
+        + "\th1:replacement\n"
+    )
     framed = native_security.START + text.encode() + native_security.END
     compiler = b"go1.27.4"
     blob = native_security.MAGIC + bytes([8, 2]) + bytes(16)
@@ -77,12 +100,15 @@ def test_packager_rejects_hash_consistent_old_payload(tmp_path, target):
     # Use a real archived payload when running the regression against a chosen root.
     import os
     import shutil
+
     old_root = os.environ.get("FS_OLD_NATIVE_ROOT")
     if not old_root:
         pytest.skip("requires a verified previous release's native payload")
     old_binary = Path(old_root) / "bin" / target / "toolbox"
     fixture = tmp_path / "extension"
-    shutil.copytree(ROOT, fixture, ignore=shutil.ignore_patterns(".git", "bin", "dist", "__pycache__"))
+    shutil.copytree(
+        ROOT, fixture, ignore=shutil.ignore_patterns(".git", "bin", "dist", "__pycache__")
+    )
     binary = fixture / "bin" / target / "toolbox"
     binary.parent.mkdir(parents=True)
     shutil.copy2(old_binary, binary)
@@ -91,7 +117,9 @@ def test_packager_rejects_hash_consistent_old_payload(tmp_path, target):
     provenance = json.loads((fixture / "toolbox-provenance.json").read_text())
     provenance["binaries"][target] = record
     (fixture / "toolbox-provenance.json").write_text(json.dumps(provenance))
-    package_spec = importlib.util.spec_from_file_location("package_extension", fixture / "scripts/package_extension.py")
+    package_spec = importlib.util.spec_from_file_location(
+        "package_extension", fixture / "scripts/package_extension.py"
+    )
     package = importlib.util.module_from_spec(package_spec)
     package_spec.loader.exec_module(package)
     with pytest.raises(ValueError, match="reviewed compiler"):
