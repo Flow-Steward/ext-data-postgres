@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.14
+
+- Refresh the locked Go dependency graph and rebuild the Linux AMD64 and ARM64 Toolbox payloads.
+
 ## 1.4.13
 
 - Rebuild Linux AMD64 and ARM64 native payloads with grpc-gateway v2.34.0 and its required indirect modules on the pinned Toolbox v1.17.0 and verified Go 1.27.4 baseline.
