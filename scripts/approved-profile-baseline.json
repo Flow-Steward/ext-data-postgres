@@ -1,8 +1,8 @@
 {
-  "upstream_from": "45ed205cc8682ed066c82e0b65bcd0e8fc3becce",
+  "upstream_from": "24762d91babd43d91afc3daeeece1cb446266c54",
   "profiles_from": "b0010060a939455d91e4f8ba62dc3e72b1892469",
-  "patch_sha256": "df264c60006ad1a01812b427fb6a9593115ddd86227fc9522b8bae6731616aca",
-  "patch_bytes": 25864,
+  "patch_sha256": "633a8c494bc01b2f9b8da00306246927b6b89d2ce78bf288269e53e8a60e5f84",
+  "patch_bytes": 28684,
   "changed_paths": [
     "internal/prebuiltconfigs/tools/alloydb-omni.yaml",
     "internal/prebuiltconfigs/tools/alloydb-postgres.yaml",

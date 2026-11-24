@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.15 - 2026-11-24
+
+- Update the pinned Toolbox source to v1.18.0 and refresh the reviewed Linux AMD64 and ARM64 dependency locks.
+- Update Cloud SQL Connector, Spanner, LZ4 and the OpenTelemetry Auto SDK in the build graph.
+- Retain the approved database profiles and the Flow Steward driver-binding contract.
+
 ## 1.4.14
 
 - Refresh the locked Go dependency graph and rebuild the Linux AMD64 and ARM64 Toolbox payloads.
