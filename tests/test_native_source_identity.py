@@ -7,7 +7,7 @@ import subprocess  # nosec B404
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-COMMIT = "45ed205cc8682ed066c82e0b65bcd0e8fc3becce"
+COMMIT = "24762d91babd43d91afc3daeeece1cb446266c54"
 
 
 @pytest.mark.packaged
@@ -19,5 +19,5 @@ def test_native_version_is_reviewed_source_and_supports_offline_startup(target):
         capture_output=True, text=True, timeout=10, check=False,
     )
     assert completed.returncode == 0, completed.stderr
-    expected = "toolbox version 1.17.0+flowsteward.dataset-connectors."
+    expected = "toolbox version 1.18.0+flowsteward.dataset-connectors."
     assert completed.stdout.strip() == expected + target.replace("-", ".") + "." + COMMIT

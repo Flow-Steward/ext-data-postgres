@@ -1,7 +1,7 @@
 name: MCP Toolbox for Databases
-version: 1.17.0
-tag: v1.17.0
-commit: 45ed205cc8682ed066c82e0b65bcd0e8fc3becce
+version: 1.18.0
+tag: v1.18.0
+commit: 24762d91babd43d91afc3daeeece1cb446266c54
 source_url: https://github.com/googleapis/mcp-toolbox
 license: Apache-2.0
 build:

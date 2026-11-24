@@ -1,5 +1,5 @@
 diff --git a/internal/sources/clickhouse/clickhouse.go b/internal/sources/clickhouse/clickhouse.go
-index 26d0f3f7a9..63646962e5 100644
+index 26d0f3f7a9eaf138e404f40472ad141057afe8b1..63646962e5493a6b5271860d217e9a2027d2685d 100644
 --- a/internal/sources/clickhouse/clickhouse.go
 +++ b/internal/sources/clickhouse/clickhouse.go
 @@ -214,3 +214,21 @@ func initClickHouseConnectionPool(ctx context.Context, tracer trace.Tracer, name
@@ -26,7 +26,7 @@ index 26d0f3f7a9..63646962e5 100644
 +}
 diff --git a/internal/sources/clickhouse/flowsteward_write_test.go b/internal/sources/clickhouse/flowsteward_write_test.go
 new file mode 100644
-index 0000000000..97533686cc
+index 0000000000000000000000000000000000000000..97533686ccfd78d1c68130ecc70313fee04bdee5
 --- /dev/null
 +++ b/internal/sources/clickhouse/flowsteward_write_test.go
 @@ -0,0 +1,54 @@
@@ -86,7 +86,7 @@ index 0000000000..97533686cc
 +}
 diff --git a/internal/sources/oceanbase/flowsteward_write_test.go b/internal/sources/oceanbase/flowsteward_write_test.go
 new file mode 100644
-index 0000000000..0a0a646dc5
+index 0000000000000000000000000000000000000000..0a0a646dc5687f20960069534f44c5161f4d865c
 --- /dev/null
 +++ b/internal/sources/oceanbase/flowsteward_write_test.go
 @@ -0,0 +1,54 @@
@@ -145,7 +145,7 @@ index 0000000000..0a0a646dc5
 +	}
 +}
 diff --git a/internal/sources/oceanbase/oceanbase.go b/internal/sources/oceanbase/oceanbase.go
-index ea96afaa27..d64a191244 100644
+index ea96afaa27231cf04032c47ba58d3540d917115e..d64a191244a895c379ffe35d8df3bf1d97e41de5 100644
 --- a/internal/sources/oceanbase/oceanbase.go
 +++ b/internal/sources/oceanbase/oceanbase.go
 @@ -177,3 +177,21 @@ func initOceanBaseConnectionPool(ctx context.Context, tracer trace.Tracer, name,
@@ -172,7 +172,7 @@ index ea96afaa27..d64a191244 100644
 +}
 diff --git a/internal/sources/singlestore/flowsteward_write_test.go b/internal/sources/singlestore/flowsteward_write_test.go
 new file mode 100644
-index 0000000000..aa0776b46f
+index 0000000000000000000000000000000000000000..aa0776b46fe65e337df6d8623f649525b5474f93
 --- /dev/null
 +++ b/internal/sources/singlestore/flowsteward_write_test.go
 @@ -0,0 +1,54 @@
@@ -231,7 +231,7 @@ index 0000000000..aa0776b46f
 +	}
 +}
 diff --git a/internal/sources/singlestore/singlestore.go b/internal/sources/singlestore/singlestore.go
-index fd6f524f92..cfc9a86261 100644
+index fd6f524f92d09c1a2b02e726fe33d0a32d006a9c..cfc9a862614e1c1d6b4e0b911494db41245d9f4d 100644
 --- a/internal/sources/singlestore/singlestore.go
 +++ b/internal/sources/singlestore/singlestore.go
 @@ -220,3 +220,21 @@ func initSingleStoreConnectionPool(ctx context.Context, tracer trace.Tracer, cfg
@@ -258,7 +258,7 @@ index fd6f524f92..cfc9a86261 100644
 +}
 diff --git a/internal/sources/snowflake/flowsteward_write_test.go b/internal/sources/snowflake/flowsteward_write_test.go
 new file mode 100644
-index 0000000000..48ef510a1d
+index 0000000000000000000000000000000000000000..48ef510a1dd3cfe77f52224fa766c1e50270447c
 --- /dev/null
 +++ b/internal/sources/snowflake/flowsteward_write_test.go
 @@ -0,0 +1,55 @@
@@ -318,7 +318,7 @@ index 0000000000..48ef510a1d
 +	}
 +}
 diff --git a/internal/sources/snowflake/snowflake.go b/internal/sources/snowflake/snowflake.go
-index e1beced4a7..a47e840da2 100644
+index e1beced4a786afba89daca5a81fda50541d3de1a..a47e840da23f23b722d6bf0ba3b5c60cca2d91e2 100644
 --- a/internal/sources/snowflake/snowflake.go
 +++ b/internal/sources/snowflake/snowflake.go
 @@ -162,3 +162,21 @@ func initSnowflakeConnection(ctx context.Context, tracer trace.Tracer, name, acc
@@ -344,7 +344,7 @@ index e1beced4a7..a47e840da2 100644
 +	return []any{map[string]any{"affected_rows": affected}}, nil
 +}
 diff --git a/internal/sources/spanner/spanner.go b/internal/sources/spanner/spanner.go
-index a09a18734d..61ad52de1e 100644
+index a09a18734dfd9b720efaa012f3327f870e64d03d..61ad52de1edbd2980630916773ec8071723fabbb 100644
 --- a/internal/sources/spanner/spanner.go
 +++ b/internal/sources/spanner/spanner.go
 @@ -318,3 +318,20 @@ func (s *Source) InvokeSearchCatalog(ctx context.Context, params map[string]any,
@@ -370,7 +370,7 @@ index a09a18734d..61ad52de1e 100644
 +}
 diff --git a/internal/sources/sqlite/flowsteward_lifecycle_test.go b/internal/sources/sqlite/flowsteward_lifecycle_test.go
 new file mode 100644
-index 0000000000..ac3bff0a1f
+index 0000000000000000000000000000000000000000..ac3bff0a1f8aea5428240b620fae5d7b39555440
 --- /dev/null
 +++ b/internal/sources/sqlite/flowsteward_lifecycle_test.go
 @@ -0,0 +1,42 @@
@@ -418,7 +418,7 @@ index 0000000000..ac3bff0a1f
 +}
 diff --git a/internal/sources/sqlite/flowsteward_write_test.go b/internal/sources/sqlite/flowsteward_write_test.go
 new file mode 100644
-index 0000000000..2b64cc8d59
+index 0000000000000000000000000000000000000000..2b64cc8d59e2446104c5d02ac27bb49f70930922
 --- /dev/null
 +++ b/internal/sources/sqlite/flowsteward_write_test.go
 @@ -0,0 +1,54 @@
@@ -477,7 +477,7 @@ index 0000000000..2b64cc8d59
 +	}
 +}
 diff --git a/internal/sources/sqlite/sqlite.go b/internal/sources/sqlite/sqlite.go
-index db89f54773..e8bcca6af4 100644
+index 1a53ae53fe2a3074eb812f7bcb2230c0500d81bf..491cc2a8e9fd3fd2ea27e6f57e584543511cc4bd 100644
 --- a/internal/sources/sqlite/sqlite.go
 +++ b/internal/sources/sqlite/sqlite.go
 @@ -178,3 +178,21 @@ func initSQLiteConnection(ctx context.Context, tracer trace.Tracer, name, dbPath
@@ -503,10 +503,15 @@ index db89f54773..e8bcca6af4 100644
 +	return []any{map[string]any{"affected_rows": affected}}, nil
 +}
 diff --git a/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go b/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go
-index d9dbd31436..924511bb09 100644
+index b88bdfa171b32d75c22b017d58158fdb1d813dc9..924511bb096b4fd3565d8917e49053c885621d1a 100644
 --- a/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go
 +++ b/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql.go
-@@ -23,6 +23,7 @@ import (
+@@ -19,11 +19,11 @@ import (
+ 	"fmt"
+ 	"net/http"
+ 
+-	"github.com/ClickHouse/clickhouse-go/v2"
+ 	yaml "github.com/goccy/go-yaml"
  	"github.com/googleapis/mcp-toolbox/internal/sources"
  	"github.com/googleapis/mcp-toolbox/internal/tools"
  	"github.com/googleapis/mcp-toolbox/internal/util"
@@ -514,17 +519,25 @@ index d9dbd31436..924511bb09 100644
  	"github.com/googleapis/mcp-toolbox/internal/util/parameters"
  )
  
-@@ -63,8 +64,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
+@@ -64,16 +64,7 @@ func (cfg Config) Initialize(context.Context) (tools.Tool, error) {
  		return nil, fmt.Errorf("description is required for tool %q", cfg.Name)
  	}
  
 -	sqlParameter := parameters.NewStringParameter("sql", "The SQL statement to execute.")
--	params := parameters.Parameters{sqlParameter}
+-	queryParamsParameter := parameters.NewMapParameter(
+-		"params",
+-		"Optional query parameters for {name:Type} placeholders in the SQL statement, by name. ClickHouse binds them "+
+-			"on the server. Each value is a string in ClickHouse's text format for its type (e.g. \"42\", "+
+-			"\"2024-01-31\", \"['a','b']\").",
+-		"string",
+-		parameters.WithMapRequired(false),
+-	)
+-	params := parameters.Parameters{sqlParameter, queryParamsParameter}
 +	params := flowstewardbinding.ToolParameters()
  
  	return Tool{
  		BaseTool: tools.NewBaseTool(
-@@ -103,12 +103,29 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
+@@ -112,44 +103,31 @@ func (t Tool) Invoke(ctx context.Context, s sources.Source, params parameters.Pa
  	if !ok {
  		return nil, util.NewClientServerError("source used is not compatible with the tool", http.StatusInternalServerError, nil)
  	}
@@ -536,11 +549,18 @@ index d9dbd31436..924511bb09 100644
 +	boundQuery, bindErr := flowstewardbinding.Parse(params)
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid bound query", bindErr)
-+	}
+ 	}
+-	queryParams, err := toQueryParameters(paramsMap["params"])
+-	if err != nil {
+-		return nil, util.NewAgentError("failed to parse query parameters", err)
 +	driverParams, bindErr := boundQuery.ParamValues()
 +	if bindErr != nil {
 +		return nil, util.NewAgentError("invalid clickhouse binding", bindErr)
-+	}
+ 	}
+-	if len(queryParams) > 0 {
+-		// Sent as param_<name>: the server parses each value as its declared
+-		// type, so a value is never read as SQL.
+-		ctx = clickhouse.Context(ctx, clickhouse.WithParameters(queryParams))
 +	if boundQuery.Write {
 +		writer, ok := any(source).(interface {
 +			RunWrite(context.Context, string, []any) (any, error)
@@ -559,9 +579,106 @@ index d9dbd31436..924511bb09 100644
  	if err != nil {
  		return nil, util.ProcessGeneralError(err)
  	}
+ 	return resp, nil
+ }
+-
+-// toQueryParameters converts the optional params argument, a map of parameter
+-// names to values in ClickHouse's text format, to query parameters.
+-func toQueryParameters(value any) (clickhouse.Parameters, error) {
+-	if value == nil {
+-		return nil, nil
+-	}
+-	values, ok := value.(map[string]any)
+-	if !ok {
+-		return nil, fmt.Errorf("unable to cast params parameter %v: want an object of strings", value)
+-	}
+-	queryParams := make(clickhouse.Parameters, len(values))
+-	for name, v := range values {
+-		text, ok := v.(string)
+-		if !ok {
+-			return nil, fmt.Errorf("invalid value for params.%s: want a string in ClickHouse's text format, got %T", name, v)
+-		}
+-		queryParams[name] = text
+-	}
+-	return queryParams, nil
+-}
+diff --git a/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql_test.go b/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql_test.go
+index a34db3f57ccf5e0a6d77d598d0d4e1c8a702b874..903852c9f01eea80b45528b47ba5d4693cbe18c5 100644
+--- a/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql_test.go
++++ b/internal/tools/clickhouse/clickhouseexecutesql/clickhouseexecutesql_test.go
+@@ -18,7 +18,6 @@ import (
+ 	"fmt"
+ 	"testing"
+ 
+-	"github.com/ClickHouse/clickhouse-go/v2"
+ 	"github.com/google/go-cmp/cmp"
+ 	"github.com/googleapis/mcp-toolbox/internal/server"
+ 	"github.com/googleapis/mcp-toolbox/internal/testutils"
+@@ -71,52 +70,6 @@ func TestParseFromYamlClickHouseExecuteSQL(t *testing.T) {
+ 	}
+ }
+ 
+-func TestToQueryParameters(t *testing.T) {
+-	tcs := []struct {
+-		desc    string
+-		in      any
+-		want    clickhouse.Parameters
+-		wantErr bool
+-	}{
+-		{
+-			desc: "absent",
+-			in:   nil,
+-			want: nil,
+-		},
+-		{
+-			desc: "empty",
+-			in:   map[string]any{},
+-			want: clickhouse.Parameters{},
+-		},
+-		{
+-			desc: "values in ClickHouse's text format",
+-			in:   map[string]any{"n": "42", "names": "['a','b']", "s": "x'; DROP TABLE t"},
+-			want: clickhouse.Parameters{"n": "42", "names": "['a','b']", "s": "x'; DROP TABLE t"},
+-		},
+-		{
+-			desc:    "value that is not a string",
+-			in:      map[string]any{"n": 42},
+-			wantErr: true,
+-		},
+-		{
+-			desc:    "not an object",
+-			in:      "n=42",
+-			wantErr: true,
+-		},
+-	}
+-	for _, tc := range tcs {
+-		t.Run(tc.desc, func(t *testing.T) {
+-			got, err := toQueryParameters(tc.in)
+-			if (err != nil) != tc.wantErr {
+-				t.Fatalf("unexpected error: got %v, wantErr %v", err, tc.wantErr)
+-			}
+-			if diff := cmp.Diff(tc.want, got); diff != "" {
+-				t.Errorf("incorrect parameters: diff %v", diff)
+-			}
+-		})
+-	}
+-}
+-
+ func TestExecuteSQLManifestParams(t *testing.T) {
+ 	tool, err := Config{
+ 		ConfigBase: tools.ConfigBase{Name: "my-tool", Description: "some description"},
+@@ -130,7 +83,7 @@ func TestExecuteSQLManifestParams(t *testing.T) {
+ 	for _, p := range tool.StaticManifest().Parameters {
+ 		got = append(got, fmt.Sprintf("%s required=%t", p.Name, p.Required))
+ 	}
+-	want := []string{"sql required=true", "params required=false"}
++	want := []string{"sql required=true", "params_json required=true", "param_order required=true", "binding required=true"}
+ 	if diff := cmp.Diff(want, got); diff != "" {
+ 		t.Errorf("incorrect manifest parameters: diff %v", diff)
+ 	}
 diff --git a/internal/tools/clickhouse/clickhouseexecutesql/flowsteward_test.go b/internal/tools/clickhouse/clickhouseexecutesql/flowsteward_test.go
 new file mode 100644
-index 0000000000..eceb531c40
+index 0000000000000000000000000000000000000000..eceb531c40a05a6aa048b3429e3ab9b0ecae44ab
 --- /dev/null
 +++ b/internal/tools/clickhouse/clickhouseexecutesql/flowsteward_test.go
 @@ -0,0 +1,85 @@
@@ -652,7 +769,7 @@ index 0000000000..eceb531c40
 +}
 diff --git a/internal/tools/mssql/mssqlexecutesql/flowsteward_test.go b/internal/tools/mssql/mssqlexecutesql/flowsteward_test.go
 new file mode 100644
-index 0000000000..15bb0190ca
+index 0000000000000000000000000000000000000000..15bb0190ca421a4c741fee9a447b6e2b12ccc608
 --- /dev/null
 +++ b/internal/tools/mssql/mssqlexecutesql/flowsteward_test.go
 @@ -0,0 +1,57 @@
@@ -714,7 +831,7 @@ index 0000000000..15bb0190ca
 +	}
 +}
 diff --git a/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go b/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
-index cc3e6ef06a..43bf93256a 100644
+index cc3e6ef06a3845f7ae16c7e64211095dc4e9ec0f..43bf93256a5b0633de401338d8e01811a2f8045b 100644
 --- a/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
 +++ b/internal/tools/mssql/mssqlexecutesql/mssqlexecutesql.go
 @@ -24,6 +24,7 @@ import (
@@ -765,7 +882,7 @@ index cc3e6ef06a..43bf93256a 100644
  	}
 diff --git a/internal/tools/mysql/mysqlexecutesql/flowsteward_test.go b/internal/tools/mysql/mysqlexecutesql/flowsteward_test.go
 new file mode 100644
-index 0000000000..7ea3571b50
+index 0000000000000000000000000000000000000000..7ea3571b50a36a21cd2b6544fa18484bd62d4a4e
 --- /dev/null
 +++ b/internal/tools/mysql/mysqlexecutesql/flowsteward_test.go
 @@ -0,0 +1,57 @@
@@ -827,7 +944,7 @@ index 0000000000..7ea3571b50
 +	}
 +}
 diff --git a/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go b/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go
-index 11d3bad3a4..22b49a952c 100644
+index 11d3bad3a4c52aac3d0d189d0bc6cf02e1ad74b2..22b49a952cbd03c90bb6b0f1e620878ae7f5bed1 100644
 --- a/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go
 +++ b/internal/tools/mysql/mysqlexecutesql/mysqlexecutesql.go
 @@ -24,6 +24,7 @@ import (
@@ -878,7 +995,7 @@ index 11d3bad3a4..22b49a952c 100644
  	}
 diff --git a/internal/tools/oceanbase/oceanbaseexecutesql/flowsteward_test.go b/internal/tools/oceanbase/oceanbaseexecutesql/flowsteward_test.go
 new file mode 100644
-index 0000000000..37796f6438
+index 0000000000000000000000000000000000000000..37796f643871fc3fc20ff6448aea2fb25d5bd947
 --- /dev/null
 +++ b/internal/tools/oceanbase/oceanbaseexecutesql/flowsteward_test.go
 @@ -0,0 +1,88 @@
@@ -971,7 +1088,7 @@ index 0000000000..37796f6438
 +	}
 +}
 diff --git a/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go b/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go
-index bea7bfb302..6f829efbcc 100644
+index bea7bfb3022520006c0200b91fe8d36a1da2a471..6f829efbccbab4c509c3cc60dffc428a7e7561d9 100644
 --- a/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go
 +++ b/internal/tools/oceanbase/oceanbaseexecutesql/oceanbaseexecutesql.go
 @@ -24,6 +24,7 @@ import (
@@ -1029,7 +1146,7 @@ index bea7bfb302..6f829efbcc 100644
  	}
 diff --git a/internal/tools/postgres/postgresexecutesql/flowsteward_test.go b/internal/tools/postgres/postgresexecutesql/flowsteward_test.go
 new file mode 100644
-index 0000000000..46225d51e8
+index 0000000000000000000000000000000000000000..46225d51e873e740bf9dd7094238fe4e61d12bc4
 --- /dev/null
 +++ b/internal/tools/postgres/postgresexecutesql/flowsteward_test.go
 @@ -0,0 +1,57 @@
@@ -1091,7 +1208,7 @@ index 0000000000..46225d51e8
 +	}
 +}
 diff --git a/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go b/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go
-index 62e8c0a1e1..843b34d8dd 100644
+index 62e8c0a1e15c818f2c62fd1587229332251aeccb..843b34d8dda78efacb86e9dc1a02fbb8e85782ce 100644
 --- a/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go
 +++ b/internal/tools/postgres/postgresexecutesql/postgresexecutesql.go
 @@ -23,6 +23,7 @@ import (
@@ -1142,7 +1259,7 @@ index 62e8c0a1e1..843b34d8dd 100644
  	}
 diff --git a/internal/tools/singlestore/singlestoreexecutesql/flowsteward_test.go b/internal/tools/singlestore/singlestoreexecutesql/flowsteward_test.go
 new file mode 100644
-index 0000000000..a0d1c389c3
+index 0000000000000000000000000000000000000000..a0d1c389c3e5efc55768f923a2d15f6a96a3f55b
 --- /dev/null
 +++ b/internal/tools/singlestore/singlestoreexecutesql/flowsteward_test.go
 @@ -0,0 +1,88 @@
@@ -1235,7 +1352,7 @@ index 0000000000..a0d1c389c3
 +	}
 +}
 diff --git a/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go b/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go
-index 4cfe088fc9..29befba8c5 100644
+index 4cfe088fc9c61da781b46b2b2fbeca7375f8dc6a..29befba8c5bc5811a76e844b5a92d551d1c58aeb 100644
 --- a/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go
 +++ b/internal/tools/singlestore/singlestoreexecutesql/singlestoreexecutesql.go
 @@ -25,6 +25,7 @@ import (
@@ -1300,7 +1417,7 @@ index 4cfe088fc9..29befba8c5 100644
  	}
 diff --git a/internal/tools/snowflake/snowflakeexecutesql/flowsteward_test.go b/internal/tools/snowflake/snowflakeexecutesql/flowsteward_test.go
 new file mode 100644
-index 0000000000..c514bb3af1
+index 0000000000000000000000000000000000000000..c514bb3af12695fec1c6fcf4946d48b02a85191d
 --- /dev/null
 +++ b/internal/tools/snowflake/snowflakeexecutesql/flowsteward_test.go
 @@ -0,0 +1,88 @@
@@ -1393,7 +1510,7 @@ index 0000000000..c514bb3af1
 +	}
 +}
 diff --git a/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go b/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go
-index fbca8ac574..b130e3c391 100644
+index fbca8ac5748c8e9c1a4e56b84e1084cb9eb7c7bf..b130e3c391be7058e1b2687640b7386953f3eceb 100644
 --- a/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go
 +++ b/internal/tools/snowflake/snowflakeexecutesql/snowflakeexecutesql.go
 @@ -23,6 +23,7 @@ import (
@@ -1458,7 +1575,7 @@ index fbca8ac574..b130e3c391 100644
  	}
 diff --git a/internal/tools/spanner/spannerexecutesql/flowsteward_test.go b/internal/tools/spanner/spannerexecutesql/flowsteward_test.go
 new file mode 100644
-index 0000000000..53f791d9be
+index 0000000000000000000000000000000000000000..53f791d9be302ce37602de5d793287ec06b2dc14
 --- /dev/null
 +++ b/internal/tools/spanner/spannerexecutesql/flowsteward_test.go
 @@ -0,0 +1,89 @@
@@ -1552,7 +1669,7 @@ index 0000000000..53f791d9be
 +	}
 +}
 diff --git a/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go b/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go
-index 3915b74b95..afd75d7e18 100644
+index 3915b74b9583e89af733b2b5d1211aa232ef8955..afd75d7e1806444546628ed1623f218bc4602f1d 100644
 --- a/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go
 +++ b/internal/tools/spanner/spannerexecutesql/spannerexecutesql.go
 @@ -24,6 +24,7 @@ import (
@@ -1621,7 +1738,7 @@ index 3915b74b95..afd75d7e18 100644
  	}
 diff --git a/internal/tools/sqlite/sqliteexecutesql/flowsteward_test.go b/internal/tools/sqlite/sqliteexecutesql/flowsteward_test.go
 new file mode 100644
-index 0000000000..9aeca3b3ae
+index 0000000000000000000000000000000000000000..9aeca3b3ae5f02a0319aa1692cd268a96fb1cc39
 --- /dev/null
 +++ b/internal/tools/sqlite/sqliteexecutesql/flowsteward_test.go
 @@ -0,0 +1,88 @@
@@ -1714,7 +1831,7 @@ index 0000000000..9aeca3b3ae
 +	}
 +}
 diff --git a/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go b/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go
-index caf1661166..fdfbad4d39 100644
+index caf1661166733dcb868dd1d78d5b5bf493606df0..fdfbad4d395444bd048a978496762794addf7db4 100644
 --- a/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go
 +++ b/internal/tools/sqlite/sqliteexecutesql/sqliteexecutesql.go
 @@ -24,6 +24,7 @@ import (
@@ -1780,7 +1897,7 @@ index caf1661166..fdfbad4d39 100644
  	}
 diff --git a/internal/util/flowstewardbinding/binding.go b/internal/util/flowstewardbinding/binding.go
 new file mode 100644
-index 0000000000..65fcb803ab
+index 0000000000000000000000000000000000000000..65fcb803ab2b9e60d3e4c2c647bf7efd731b3168
 --- /dev/null
 +++ b/internal/util/flowstewardbinding/binding.go
 @@ -0,0 +1,152 @@
@@ -1938,7 +2055,7 @@ index 0000000000..65fcb803ab
 +}
 diff --git a/internal/util/flowstewardbinding/binding_test.go b/internal/util/flowstewardbinding/binding_test.go
 new file mode 100644
-index 0000000000..61eab7e90d
+index 0000000000000000000000000000000000000000..61eab7e90dab9d0674b18a7592bf423cbc1d8137
 --- /dev/null
 +++ b/internal/util/flowstewardbinding/binding_test.go
 @@ -0,0 +1,98 @@
