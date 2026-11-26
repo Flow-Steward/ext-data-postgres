@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.16 - 2026-11-26
+
+- Use the upstream Gorilla WebSocket masking fix for GHSA-w67g-5rqw-f597.
+- Rebuild Linux AMD64 and ARM64 from the reviewed Go module lock.
+- Update Google API to v0.317.0 and Google Cloud Auth to v0.24.5.
+
 ## 1.4.15 - 2026-11-24
 
 - Update the pinned Toolbox source to v1.18.0 and refresh the reviewed Linux AMD64 and ARM64 dependency locks.
